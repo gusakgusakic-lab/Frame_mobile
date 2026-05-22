@@ -3,13 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Framework 2.0</title>
+    <title>Framework 2.0 Pro</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        body { background-color: #0f0f13; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-tap-highlight-color: transparent; }
+        body { background-color: #0f0f13; color: #e0e0e0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; -webkit-tap-highlight-color: transparent; }
         .bg-dark { background-color: #1c1c22; }
         .bg-darker { background-color: #121216; }
         .accent { background-color: #fca311; } 
@@ -25,30 +25,51 @@
         .msg-theirs { background-color: #2c2c35; color: #fff; border-bottom-left-radius: 4px; margin-right: auto;}
         
         .slide-screen { transition: transform 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
-        .animate-slide-up { animation: slideUp 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); }
         .pb-safe { padding-bottom: env(safe-area-inset-bottom, 16px); }
+
+        /* Голубой круг вокруг авы онлайн (TikTok стиль) */
+        .online-ring {
+            position: relative;
+        }
+        .online-ring::after {
+            content: ''; position: absolute; inset: -3px; border-radius: 50%;
+            border: 2px solid #00d2ff; box-shadow: 0 0 8px #00d2ff;
+            animation: rotateRing 4s linear infinite;
+        }
+
+        /* Контекстное меню */
+        .context-menu { display: none; position: absolute; background: #2c2c35; border: 1px solid #444; border-radius: 12px; z-index: 100; box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .context-menu button { width: 100%; text-align: left; padding: 10px 16px; font-size: 14px; color: #fff; }
+        .context-menu button:hover { background: #3d3d4a; }
     </style>
 </head>
 <body class="h-[100dvh] w-full overflow-hidden relative">
+
+    <div id="chat-context-menu" class="context-menu w-48">
+        <button onclick="triggerRenameFriend()" id="btn-ctx-rename">✏️ Изменить имя</button>
+        <button onclick="triggerBlockUser()" id="btn-ctx-block" class="text-red-400">🚫 Заблокировать</button>
+        <button onclick="triggerDeleteChat()" id="btn-ctx-delete" class="text-red-400">🗑️ Удалить</button>
+    </div>
 
     <div id="auth-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-darker p-4 overflow-y-auto hidden">
         <div class="w-full max-w-sm pb-10">
             <div class="text-center mb-8 mt-4"><div class="text-6xl mb-3">💬</div><h1 class="text-3xl font-black tracking-widest text-white uppercase">Framework</h1></div>
             <h2 id="auth-title" class="text-xl font-bold text-center mb-6 text-gray-300">Вход</h2>
-            <div id="error-msg" class="hidden bg-red-500/20 border border-red-500 text-red-200 p-3 rounded-lg mb-6 text-sm text-center font-medium"></div>
 
             <div class="space-y-4">
                 <input type="tel" id="phone-input" placeholder="Номер (напр. 375292859316)" class="w-full bg-dark text-white p-4 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 text-lg">
-                <div id="nickname-block" class="hidden"><input type="text" id="nickname-input" placeholder="Никнейм" class="w-full bg-dark text-white p-4 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 text-lg"></div>
-                <div id="emoji-block" class="hidden"><label class="block text-sm text-gray-400 mb-2 pl-1">Аватар</label><div id="emoji-picker" class="flex flex-wrap gap-3 h-32 overflow-y-auto bg-dark p-3 rounded-xl justify-center"></div></div>
+                <div id="reg-fields" class="hidden space-y-4">
+                    <input type="text" id="username-input" placeholder="@username" class="w-full bg-dark text-white p-4 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 text-lg">
+                    <input type="text" id="nickname-input" placeholder="Никнейм" class="w-full bg-dark text-white p-4 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 text-lg">
+                    <div id="emoji-block"><label class="block text-sm text-gray-400 mb-2 pl-1">Аватар</label><div id="emoji-picker" class="flex flex-wrap gap-3 h-32 overflow-y-auto bg-dark p-3 rounded-xl justify-center"></div></div>
+                </div>
                 <div class="relative">
                     <input type="password" id="password-input" placeholder="Пароль" class="w-full bg-dark text-white p-4 rounded-xl outline-none focus:ring-2 focus:ring-yellow-500 text-lg pr-12">
                     <button onclick="togglePassword('password-input', 'eye-icon')" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 p-2"><i id="eye-icon" class="fas fa-eye text-lg"></i></button>
                 </div>
                 <button id="auth-btn" onclick="handleAuth()" class="w-full accent text-gray-900 font-bold p-4 rounded-xl mt-6 text-lg shadow-lg">Войти</button>
             </div>
-            <div class="mt-8 text-center"><button onclick="toggleAuthMode()" class="text-gray-400 active:text-white p-2"><span id="auth-toggle-text" class="border-b border-gray-600">Нет аккаунта? Создать</span></button></div>
+            <div class="mt-8 text-center"><button onclick="toggleAuthMode()" class="text-gray-400 active:text-white p-2"><span id="auth-toggle-text">Нет аккаунта? Создать</span></button></div>
         </div>
     </div>
 
@@ -58,18 +79,17 @@
             <div class="h-16 border-b border-gray-800 bg-dark flex justify-between items-center px-4 flex-shrink-0">
                 <div class="flex items-center gap-3">
                     <button onclick="showModal('settings-modal')" class="text-gray-400 active:text-white text-xl mr-1"><i class="fas fa-cog"></i></button>
-                    <div id="my-avatar" class="text-3xl bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center shadow-inner">👤</div>
+                    <div id="my-avatar" class="text-3xl bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center">👤</div>
                     <div class="flex flex-col">
-                        <span id="my-nickname" class="font-bold text-white leading-tight">Загрузка...</span>
-                        <span id="my-phone" class="text-xs text-gray-500"></span>
+                        <span id="my-nickname" class="font-bold text-white leading-tight">...</span>
+                        <span id="my-username" class="text-xs text-yellow-500">@username</span>
                     </div>
                 </div>
-                <button onclick="showModal('contacts-modal')" class="text-gray-400 active:text-blue-400 p-2 text-xl"><i class="fas fa-address-book"></i></button>
             </div>
 
             <div class="flex gap-2 p-3 flex-shrink-0">
-                <button onclick="showModal('new-chat-modal')" class="flex-1 bg-dark active:bg-gray-800 p-3 rounded-xl text-sm font-medium border border-gray-800"><i class="fas fa-user mr-2 text-blue-400"></i>Чат</button>
-                <button onclick="showGroupModal()" class="flex-1 bg-dark active:bg-gray-800 p-3 rounded-xl text-sm font-medium border border-gray-800"><i class="fas fa-users mr-2 text-green-400"></i>Группа</button>
+                <button onclick="showModal('new-chat-modal')" id="btn-main-add-friend" class="flex-1 bg-dark active:bg-gray-800 p-3 rounded-xl text-sm font-medium border border-gray-800"><i class="fas fa-user-plus mr-2 text-blue-400"></i>+ Друг</button>
+                <button onclick="showGroupModal()" id="btn-main-create-group" class="flex-1 bg-dark active:bg-gray-800 p-3 rounded-xl text-sm font-medium border border-gray-800"><i class="fas fa-users mr-2 text-green-400"></i>+ Группа</button>
             </div>
 
             <div id="chats-list" class="flex-1 overflow-y-auto px-2 pb-4 space-y-2"></div>
@@ -78,11 +98,11 @@
         <div id="active-chat-screen" class="slide-screen absolute inset-0 flex flex-col bg-darker z-20 w-full h-full translate-x-full">
             <div class="h-16 border-b border-gray-800 bg-dark flex items-center px-2 flex-shrink-0 justify-between">
                 <div class="flex items-center">
-                    <button onclick="closeChat()" class="p-3 text-accent active:text-white flex items-center"><i class="fas fa-chevron-left text-xl"></i></button>
-                    <div class="flex items-center gap-3 ml-2 cursor-pointer active:opacity-50" onclick="openChatInfo()">
-                        <div id="current-chat-avatar" class="text-2xl bg-gray-800 rounded-full w-10 h-10 flex items-center justify-center">💬</div>
+                    <button onclick="closeChat()" class="p-3 text-yellow-500 active:text-white flex items-center"><i class="fas fa-chevron-left text-xl"></i></button>
+                    <div class="flex items-center gap-3 ml-2">
+                        <div id="current-chat-avatar-container" class="w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 text-2xl">💬</div>
                         <div class="flex flex-col">
-                            <span id="current-chat-name" class="font-bold text-white leading-tight truncate max-w-[150px]">Название</span>
+                            <span id="current-chat-name" class="font-bold text-white leading-tight truncate max-w-[150px]">...</span>
                             <span id="current-chat-info" class="text-xs text-green-500 font-medium truncate">...</span>
                         </div>
                     </div>
@@ -91,88 +111,82 @@
 
             <div id="messages-area" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col pb-4"></div>
 
+            <div id="edit-bar" class="hidden bg-gray-800 px-4 py-2 flex justify-between items-center text-sm border-t border-gray-700">
+                <span class="text-yellow-500"><i class="fas fa-pen mr-2"></i><span id="text-editing-msg">Редактирование...</span></span>
+                <button onclick="cancelEdit()" class="text-gray-400"><i class="fas fa-times"></i></button>
+            </div>
+
             <div id="input-area" class="p-3 bg-dark border-t border-gray-800 flex-shrink-0 pb-safe">
                 <div class="flex gap-2 items-end">
                     <textarea id="message-input" rows="1" placeholder="Сообщение..." class="flex-1 bg-[#2c2c35] text-white px-4 py-3 rounded-2xl outline-none resize-none max-h-24 text-[15px]" oninput="this.style.height=''; this.style.height=this.scrollHeight+'px'"></textarea>
                     <button id="send-btn" onclick="sendMessage()" class="accent w-12 h-12 rounded-full text-gray-900 flex items-center justify-center text-xl flex-shrink-0 mb-0.5 active:scale-95"><i class="fas fa-paper-plane"></i></button>
                 </div>
+                <div id="spam-countdown" class="hidden text-center text-red-500 text-xs font-bold mt-2"></div>
             </div>
         </div>
     </div>
 
     <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-dark w-full h-[90dvh] rounded-t-2xl flex flex-col animate-slide-up">
-            <div class="p-4 border-b border-gray-800 flex justify-between items-center flex-shrink-0">
-                <h3 class="text-lg font-bold text-white">Настройки</h3>
+        <div class="bg-dark w-full h-[90dvh] rounded-t-2xl flex flex-col">
+            <div class="p-4 border-b border-gray-800 flex justify-between items-center">
+                <h3 id="lbl-settings" class="text-lg font-bold text-white">Настройки</h3>
                 <button onclick="hideModal('settings-modal')" class="text-gray-400 p-2 text-xl"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-4 flex-1 overflow-y-auto space-y-4">
-                <label class="block text-sm text-gray-400 mb-1">Никнейм</label>
+                <div>
+                    <label id="lbl-lang" class="block text-sm text-gray-400 mb-1">Язык / Language</label>
+                    <select id="lang-select" onchange="changeLang(this.value)" class="w-full bg-[#2c2c35] text-white p-3 rounded-xl outline-none">
+                        <option value="ru">Русский</option>
+                        <option value="en">English</option>
+                    </select>
+                </div>
+
+                <label id="lbl-username" class="block text-sm text-gray-400 mb-1">Имя пользователя (@username)</label>
+                <input type="text" id="edit-username" class="w-full bg-[#2c2c35] text-white p-3 rounded-xl outline-none">
+
+                <label id="lbl-nickname" class="block text-sm text-gray-400 mb-1">Никнейм</label>
                 <input type="text" id="edit-nick" class="w-full bg-[#2c2c35] text-white p-3 rounded-xl outline-none">
                 
-                <label class="block text-sm text-gray-400 mb-1">Сменить эмодзи</label>
+                <label id="lbl-change-emoji" class="block text-sm text-gray-400 mb-1">Сменить эмодзи</label>
                 <div id="edit-emoji-picker" class="flex overflow-x-auto gap-2 bg-[#2c2c35] p-2 rounded-xl pb-3"></div>
 
                 <div class="pt-4 border-t border-gray-800">
-                    <h4 class="text-white font-bold mb-3">Изменить пароль</h4>
+                    <h4 id="lbl-change-pass" class="text-white font-bold mb-3">Изменить пароль</h4>
                     <input type="password" id="old-pass" placeholder="Текущий пароль" class="w-full bg-[#2c2c35] text-white p-3 rounded-xl outline-none mb-2">
                     <input type="password" id="new-pass" placeholder="Новый пароль" class="w-full bg-[#2c2c35] text-white p-3 rounded-xl outline-none mb-2">
-                    <input type="password" id="new-pass-repeat" placeholder="Повторите новый пароль" class="w-full bg-[#2c2c35] text-white p-3 rounded-xl outline-none mb-4">
                 </div>
                 
-                <button onclick="saveProfile()" class="w-full accent text-gray-900 font-bold p-3 rounded-xl text-lg mb-4">Сохранить изменения</button>
-                <button onclick="logout()" class="w-full bg-red-600/20 text-red-500 font-bold p-3 rounded-xl text-lg border border-red-500/50">Выйти из аккаунта</button>
+                <button onclick="saveProfile()" id="btn-save-settings" class="w-full accent text-gray-900 font-bold p-3 rounded-xl text-lg mb-4">Сохранить</button>
+                <button onclick="logout()" id="btn-logout" class="w-full bg-red-600/20 text-red-500 font-bold p-3 rounded-xl text-lg border border-red-500/50">Выйти</button>
             </div>
         </div>
     </div>
 
-    <div id="contacts-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-dark w-full h-[80dvh] rounded-t-2xl flex flex-col animate-slide-up">
-            <div class="p-4 border-b border-gray-800 flex justify-between items-center flex-shrink-0">
-                <h3 class="text-lg font-bold text-white">Мои друзья</h3>
-                <button onclick="hideModal('contacts-modal')" class="text-gray-400 p-2 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="p-2 flex-1 overflow-y-auto space-y-2" id="contacts-list-area"></div>
-        </div>
-    </div>
-
-    <div id="group-info-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-dark w-full h-[75dvh] rounded-t-2xl flex flex-col animate-slide-up">
-            <div class="p-4 border-b border-gray-800 flex justify-between items-center flex-shrink-0">
-                <h3 class="text-lg font-bold text-white">Участники</h3>
-                <button onclick="hideModal('group-info-modal')" class="text-gray-400 p-2 text-xl"><i class="fas fa-times"></i></button>
-            </div>
-            <div class="p-2 flex-1 overflow-y-auto space-y-2" id="group-members-area"></div>
-        </div>
-    </div>
-
-    <div id="new-chat-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-dark w-full rounded-t-2xl p-6 pb-10 animate-slide-up">
+    <div id="new-chat-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60">
+        <div class="bg-dark w-full rounded-t-2xl p-6 pb-10">
             <div class="flex justify-between items-center mb-6">
-                <h3 class="text-xl font-bold text-white">Новый чат</h3>
+                <h3 id="lbl-add-friend-title" class="text-xl font-bold text-white">Добавить друга</h3>
                 <button onclick="hideModal('new-chat-modal')" class="text-gray-400 p-2 text-xl"><i class="fas fa-times"></i></button>
             </div>
-            <input type="tel" id="new-chat-phone" placeholder="Номер друга (напр. 37529...)" class="w-full bg-[#2c2c35] text-white p-4 rounded-xl mb-4 outline-none text-lg">
-            <button onclick="createDirectChat()" class="w-full accent text-gray-900 font-bold p-4 rounded-xl text-lg">Добавить друга и начать чат</button>
+            <input type="text" id="new-chat-username" placeholder="@username друга" class="w-full bg-[#2c2c35] text-white p-4 rounded-xl mb-4 outline-none text-lg">
+            <button onclick="addFriendByUsername()" id="btn-find-add" class="w-full accent text-gray-900 font-bold p-4 rounded-xl text-lg">Найти и добавить</button>
         </div>
     </div>
 
-    <div id="new-group-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-dark w-full h-[85dvh] rounded-t-2xl flex flex-col animate-slide-up">
+    <div id="new-group-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60">
+        <div class="bg-dark w-full h-[85dvh] rounded-t-2xl flex flex-col">
             <div class="p-4 border-b border-gray-800 flex justify-between items-center">
-                <button onclick="hideModal('new-group-modal')" class="text-gray-400 p-2">Отмена</button>
-                <h3 class="text-lg font-bold text-white">Новая группа</h3>
-                <button onclick="createGroupChat()" class="text-accent font-bold p-2">Создать</button>
+                <button onclick="hideModal('new-group-modal')" id="btn-grp-cancel" class="text-gray-400 p-2">Отмена</button>
+                <h3 id="lbl-new-grp-title" class="text-lg font-bold text-white">Новая группа</h3>
+                <button onclick="createGroupChat()" id="btn-grp-create" class="text-yellow-500 font-bold p-2">Создать</button>
             </div>
             <div class="p-4 flex-1 overflow-y-auto">
                 <input type="text" id="new-group-name" placeholder="Название группы" class="w-full bg-[#2c2c35] text-white p-4 rounded-xl mb-4 outline-none text-lg">
                 <div id="group-emoji-picker" class="flex overflow-x-auto gap-2 bg-[#2c2c35] p-2 rounded-xl mb-6 pb-3"></div>
-                <div class="flex justify-between items-end mb-2 pl-1"><span class="text-sm text-gray-400">Друзья для группы</span><span class="text-xs font-bold text-accent"><span id="group-count">0</span>/19</span></div>
                 <div id="group-users-list" class="space-y-2 pb-10"></div>
             </div>
         </div>
     </div>
-
 
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
@@ -196,21 +210,95 @@
         let currentChatId = null;
         let usersCache = {}; 
         let messagesListener = null;
+        let currentLang = 'ru';
 
-        const emojis = ['😀','😃','🤣','😇','🥰','🤑','🤔','🤐','🥶','🥵','🥸','🤮','🥳','😈','🤖','💩','🤡','😺','🖕','✌️','👀','🍊','🍉','🍎','🥝','🍍','🍌','🍓','🍒','🍑','🍟','🍕','🍔','🌍','🧭','🏠','✨','🎉','🎁','☢️','☯️','♈','♎','🔆','🔱','♀️','♂️','⚕️','♾️','✔️','🔰','♻️','🇩🇪','🇲🇬','🇵🇱','🇷🇴','🇸🇪','🇹🇳','🇽🇰','🇸🇩','🇲🇰','🇱🇹','🇬🇪','🇦🇪', '👥', '💬', '🔥', '🏆', '🎮', '💀', '👽', '👻'];
+        // Логика редактирования сообщений
+        let editingMessageId = null;
+
+        // Переменные контекстного меню
+        let selectedCtxChatId = null;
+        let selectedCtxPhone = null;
+
+        // Анти-спам трекер
+        let messageTimestamps = [];
+        let spamBlockedUntil = 0;
+
+        const emojis = ['😀','🥰','😎','🥶','🥵','😈','🤖','💩','👀','🔥','🎮','💀','📢','👥'];
         let selectedEmoji = '😀'; let selectedGroupEmoji = '👥'; let selectedEditEmoji = '😀';
 
-        window.onload = () => { initAuth(); checkSession(); };
+        // Словари переводов
+        const i18n = {
+            ru: {
+                auth: "Вход", reg: "Регистрация", loginBtn: "Войти", createBtn: "Создать аккаунт", toggleReg: "Нет аккаунта? Создать", toggleLogin: "Уже есть аккаунт? Войти",
+                settings: "Настройки", lang: "Язык", username: "Имя пользователя (@username)", nickname: "Никнейм", changeEmoji: "Сменить эмодзи", changePass: "Изменить пароль",
+                save: "Сохранить изменения", logout: "Выйти из аккаунта", addFriend: "+ Друг", createGroup: "+ Группа", addFriendTitle: "Добавить друга", findAndAdd: "Найти и добавить",
+                cancel: "Отмена", create: "Создать", newGroupTitle: "Новая группа", editing: "Редактирование...", online: "В сети", offline: "Не в сети",
+                channel: "Официальный канал", group: "Группа", justNow: "Был(а) только что", spamWarn: "Не спамьте! Блокировка на 15 сек."
+            },
+            en: {
+                auth: "Login", reg: "Registration", loginBtn: "Sign In", createBtn: "Create Account", toggleReg: "No account? Sign Up", toggleLogin: "Have an account? Login",
+                settings: "Settings", lang: "Language", username: "Username (@username)", nickname: "Nickname", changeEmoji: "Change Emoji", changePass: "Change Password",
+                save: "Save Changes", logout: "Log Out", addFriend: "+ Friend", createGroup: "+ Group", addFriendTitle: "Add Friend", findAndAdd: "Find and Add",
+                cancel: "Cancel", create: "Create", newGroupTitle: "New Group", editing: "Editing...", online: "Online", offline: "Offline",
+                channel: "Official Channel", group: "Group", justNow: "Just now", spamWarn: "Do not spam! Blocked for 15 sec."
+            }
+        };
+
+        function t(key) { return i18n[currentLang][key] || key; }
+
+        window.onload = () => { initAuth(); checkSession(); setupContextMenu(); };
 
         function showModal(id) { document.getElementById(id).classList.remove('hidden'); }
         function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
 
-        // === АВТОРИЗАЦИЯ И ПРОФИЛЬ ===
+        function setupContextMenu() {
+            window.addEventListener('click', () => { document.getElementById('chat-context-menu').style.display = 'none'; });
+        }
+
+        function changeLang(val) {
+            currentLang = val;
+            localStorage.setItem('framework_lang', val);
+            applyLocalization();
+        }
+
+        function applyLocalization() {
+            document.getElementById('lbl-settings').innerText = t('settings');
+            document.getElementById('lbl-lang').innerText = t('lang') + " / Language";
+            document.getElementById('lbl-username').innerText = t('username');
+            document.getElementById('lbl-nickname').innerText = t('nickname');
+            document.getElementById('lbl-change-emoji').innerText = t('changeEmoji');
+            document.getElementById('lbl-change-pass').innerText = t('changePass');
+            document.getElementById('btn-save-settings').innerText = t('save');
+            document.getElementById('btn-logout').innerText = t('logout');
+            document.getElementById('btn-main-add-friend').innerHTML = `<i class="fas fa-user-plus mr-2 text-blue-400"></i>${t('addFriend')}`;
+            document.getElementById('btn-main-create-group').innerHTML = `<i class="fas fa-users mr-2 text-green-400"></i>${t('createGroup')}`;
+            document.getElementById('lbl-add-friend-title').innerText = t('addFriendTitle');
+            document.getElementById('btn-find-add').innerText = t('findAndAdd');
+            document.getElementById('btn-grp-cancel').innerText = t('cancel');
+            document.getElementById('btn-grp-create').innerText = t('create');
+            document.getElementById('lbl-new-grp-title').innerText = t('newGroupTitle');
+            document.getElementById('text-editing-msg').innerText = t('editing');
+            
+            if(isLoginMode) {
+                document.getElementById('auth-title').innerText = t('auth');
+                document.getElementById('auth-btn').innerText = t('loginBtn');
+                document.getElementById('auth-toggle-text').innerText = t('toggleReg');
+            } else {
+                document.getElementById('auth-title').innerText = t('reg');
+                document.getElementById('auth-btn').innerText = t('createBtn');
+                document.getElementById('auth-toggle-text').innerText = t('toggleLogin');
+            }
+        }
+
         function initAuth() {
+            const savedLang = localStorage.getItem('framework_lang');
+            if(savedLang) { currentLang = savedLang; document.getElementById('lang-select').value = savedLang; }
+            applyLocalization();
+
             document.getElementById('auth-screen').classList.remove('hidden');
-            document.getElementById('emoji-picker').innerHTML = emojis.map(e => `<div class="text-3xl cursor-pointer p-1 emoji-btn flex-shrink-0 ${e === selectedEmoji ? 'emoji-selected' : ''}" onclick="selectEmoji('${e}', this, 'selectedEmoji', '#emoji-picker')">${e}</div>`).join('');
-            document.getElementById('edit-emoji-picker').innerHTML = emojis.map(e => `<div class="text-3xl cursor-pointer p-1 emoji-btn flex-shrink-0" onclick="selectEmoji('${e}', this, 'selectedEditEmoji', '#edit-emoji-picker')">${e}</div>`).join('');
-            document.getElementById('group-emoji-picker').innerHTML = emojis.map(e => `<div class="text-3xl cursor-pointer p-1 emoji-btn flex-shrink-0" onclick="selectEmoji('${e}', this, 'selectedGroupEmoji', '#group-emoji-picker')">${e}</div>`).join('');
+            document.getElementById('emoji-picker').innerHTML = emojis.map(e => `<div class="text-3xl cursor-pointer p-1 emoji-btn ${e === selectedEmoji ? 'emoji-selected' : ''}" onclick="selectEmoji('${e}', this, 'selectedEmoji', '#emoji-picker')">${e}</div>`).join('');
+            document.getElementById('edit-emoji-picker').innerHTML = emojis.map(e => `<div class="text-3xl cursor-pointer p-1 emoji-btn" onclick="selectEmoji('${e}', this, 'selectedEditEmoji', '#edit-emoji-picker')">${e}</div>`).join('');
+            document.getElementById('group-emoji-picker').innerHTML = emojis.map(e => `<div class="text-3xl cursor-pointer p-1 emoji-btn" onclick="selectEmoji('${e}', this, 'selectedGroupEmoji', '#group-emoji-picker')">${e}</div>`).join('');
         }
 
         function selectEmoji(e, element, varName, containerId) {
@@ -227,11 +315,8 @@
 
         function toggleAuthMode() {
             isLoginMode = !isLoginMode;
-            document.getElementById('auth-title').innerText = isLoginMode ? 'Вход' : 'Регистрация';
-            document.getElementById('auth-btn').innerText = isLoginMode ? 'Войти' : 'Создать аккаунт';
-            document.getElementById('auth-toggle-text').innerText = isLoginMode ? 'Нет аккаунта? Создать' : 'Уже есть аккаунт? Войти';
-            document.getElementById('nickname-block').style.display = isLoginMode ? 'none' : 'block';
-            document.getElementById('emoji-block').style.display = isLoginMode ? 'none' : 'block';
+            document.getElementById('reg-fields').classList.toggle('hidden', isLoginMode);
+            applyLocalization();
         }
 
         function checkSession() {
@@ -243,159 +328,229 @@
             const phone = document.getElementById('phone-input').value.trim();
             const pass = document.getElementById('password-input').value.trim();
             if(!phone || !pass) return alert('Заполните все поля');
-            const btn = document.getElementById('auth-btn'); btn.disabled=true; btn.innerText='Загрузка...';
 
             try {
                 const snap = await db.ref('users/' + phone).once('value');
                 if (isLoginMode) {
-                    if(!snap.exists() || snap.val().password !== pass) { btn.disabled=false; btn.innerText='Войти'; return alert('Неверный номер или пароль'); }
+                    if(!snap.exists() || snap.val().password !== pass) return alert('Неверные данные');
                     currentUser = snap.val();
                 } else {
                     const nick = document.getElementById('nickname-input').value.trim();
-                    if(!nick) { btn.disabled=false; btn.innerText='Создать'; return alert('Введите никнейм'); }
-                    if(snap.exists()) { btn.disabled=false; btn.innerText='Создать'; return alert('Номер занят'); }
-                    currentUser = { phone, nickname: nick, password: pass, emoji: selectedEmoji, contacts: {} };
+                    let username = document.getElementById('username-input').value.trim().toLowerCase();
+                    if(!nick || !username) return alert('Заполните все поля');
+                    if(!username.startsWith('@')) username = '@' + username;
+                    
+                    if(snap.exists()) return alert('Номер занят');
+
+                    // Проверка уникальности username
+                    const uSnap = await db.ref('usernames/' + username.replace('@','')).once('value');
+                    if(uSnap.exists()) return alert('Этот @username уже занят');
+
+                    currentUser = { phone, username, nickname: nick, password: pass, emoji: selectedEmoji, contacts: {}, blocked: {} };
                     await db.ref('users/' + phone).set(currentUser);
+                    await db.ref('usernames/' + username.replace('@','')).set(phone);
                 }
                 localStorage.setItem('framework_user_m', JSON.stringify(currentUser));
                 startApp();
-            } catch(e) { alert('Ошибка сети'); btn.disabled=false; btn.innerText=isLoginMode?'Войти':'Создать'; }
+            } catch(e) { alert('Ошибка сети'); }
         }
 
         function logout() { localStorage.removeItem('framework_user_m'); location.reload(); }
 
-        // Настройки профиля
-        async function saveProfile() {
-            const newNick = document.getElementById('edit-nick').value.trim();
-            const oldP = document.getElementById('old-pass').value;
-            const newP = document.getElementById('new-pass').value;
-            const repP = document.getElementById('new-pass-repeat').value;
-
-            if(!newNick) return alert('Никнейм не может быть пустым');
-            
-            let updates = { nickname: newNick, emoji: selectedEditEmoji };
-
-            if(oldP || newP || repP) {
-                if(oldP !== currentUser.password) return alert('Текущий пароль неверен');
-                if(newP !== repP) return alert('Новые пароли не совпадают');
-                if(newP.length < 3) return alert('Пароль слишком короткий');
-                updates.password = newP;
-            }
-
-            await db.ref('users/' + currentUser.phone).update(updates);
-            currentUser.nickname = newNick; currentUser.emoji = selectedEditEmoji;
-            if(updates.password) currentUser.password = updates.password;
-            
-            localStorage.setItem('framework_user_m', JSON.stringify(currentUser));
-            document.getElementById('my-nickname').innerText = currentUser.nickname;
-            document.getElementById('my-avatar').innerText = currentUser.emoji;
-            hideModal('settings-modal'); alert('Профиль обновлен!');
-            
-            // Очистка полей
-            document.getElementById('old-pass').value = ''; document.getElementById('new-pass').value=''; document.getElementById('new-pass-repeat').value='';
-        }
-
-        // === ИНИЦИАЛИЗАЦИЯ И СТАТУСЫ ===
-        function startApp() {
+        async function startApp() {
             document.getElementById('auth-screen').classList.add('hidden');
             document.getElementById('main-app').classList.remove('hidden');
             
-            document.getElementById('my-avatar').innerText = currentUser.emoji;
-            document.getElementById('my-nickname').innerText = currentUser.nickname;
-            document.getElementById('my-phone').innerText = '+' + currentUser.phone;
-            
-            document.getElementById('edit-nick').value = currentUser.nickname;
-            selectedEditEmoji = currentUser.emoji || '😀';
-            
             // Настройка реального статуса
-            const myOnlineRef = db.ref(`users/${currentUser.phone}/online`);
-            const myLastSeenRef = db.ref(`users/${currentUser.phone}/last_seen`);
             db.ref('.info/connected').on('value', snap => {
                 if(snap.val() === true) {
-                    myOnlineRef.onDisconnect().set(false);
-                    myLastSeenRef.onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
-                    myOnlineRef.set(true);
+                    db.ref(`users/${currentUser.phone}/online`).onDisconnect().set(false);
+                    db.ref(`users/${currentUser.phone}/last_seen`).onDisconnect().set(firebase.database.ServerValue.TIMESTAMP);
+                    db.ref(`users/${currentUser.phone}/online`).set(true);
                 }
             });
 
             db.ref('users').on('value', snap => { 
-                if(snap.exists()) usersCache = snap.val(); 
-                if(usersCache[currentUser.phone] && usersCache[currentUser.phone].contacts) {
-                    currentUser.contacts = usersCache[currentUser.phone].contacts;
-                } else {
-                    currentUser.contacts = {};
+                if(!snap.exists()) return;
+                usersCache = snap.val(); 
+                const myFreshData = usersCache[currentUser.phone];
+                if(myFreshData) {
+                    currentUser = myFreshData;
+                    document.getElementById('my-avatar').innerText = currentUser.emoji || '👤';
+                    document.getElementById('my-nickname').innerText = currentUser.nickname;
+                    document.getElementById('my-username').innerText = currentUser.username || '';
+                    document.getElementById('edit-nick').value = currentUser.nickname;
+                    document.getElementById('edit-username').value = currentUser.username || '';
                 }
                 loadChats(); 
-                renderContacts();
             });
         }
 
-        function getStatusText(userPhone) {
-            if(userPhone === ADMIN_PHONE && currentChatId === 'channel_framework') return 'Официальный канал';
-            const u = usersCache[userPhone];
-            if(!u) return 'Не в сети';
-            if(u.online) return '<span class="text-green-500">В сети</span>';
-            if(!u.last_seen) return '<span class="text-gray-500">Не в сети</span>';
-            const diff = Date.now() - u.last_seen;
-            if(diff < 60000) return '<span class="text-yellow-500">Был(а) только что</span>';
-            return '<span class="text-gray-500">Не в сети</span>';
+        async function saveProfile() {
+            const newNick = document.getElementById('edit-nick').value.trim();
+            let newUsername = document.getElementById('edit-username').value.trim().toLowerCase();
+            if(!newUsername.startsWith('@')) newUsername = '@' + newUsername;
+
+            if(!newNick || !newUsername) return alert('Поля не могут быть пустыми');
+
+            // Если сменился юзернейм
+            if(newUsername !== currentUser.username) {
+                const cleanName = newUsername.replace('@','');
+                const check = await db.ref('usernames/' + cleanName).once('value');
+                if(check.exists()) return alert('Этот @username занят');
+                
+                if(currentUser.username) {
+                    await db.ref('usernames/' + currentUser.username.replace('@','')).remove();
+                }
+                await db.ref('usernames/' + cleanName).set(currentUser.phone);
+            }
+
+            let updates = { nickname: newNick, username: newUsername };
+            const np = document.getElementById('new-pass').value.trim();
+            if(np) updates.password = np;
+
+            await db.ref('users/' + currentUser.phone).update(updates);
+            hideModal('settings-modal');
+            alert('Данные обновлены!');
         }
 
-        // === ЧАТЫ И КАНАЛЫ ===
+        // === СВЯЗЬ И СТАТУСЫ СЕТИ ===
+        function getMessageStatusIcon(status) {
+            if(!navigator.onLine) return '<span class="text-xs">🟠</span>'; // Нет сети локально
+            if(status === 'error') return '<span class="text-xs">🔴</span>'; // Ошибка отправки / Сервер
+            if(status === 'sent') return '<span class="text-xs">🟡</span>'; // Отправлено
+            if(status === 'read') return '<span class="text-xs">🟢</span>'; // Прочитано
+            return '<span class="text-xs">🟡</span>';
+        }
+
+        // === РЕНДЕР СПИСКА ЧАТОВ С УПРАВЛЕНИЕМ ===
         function loadChats() {
             db.ref('chats').on('value', snap => {
                 const listEl = document.getElementById('chats-list'); listEl.innerHTML = '';
                 
-                // Рендер Канала Framework для всех
-                renderChatListItem('channel_framework', { type: 'channel', name: 'Framework', emoji: '📢' });
+                // Официальный канал
+                renderChatListItem('channel_framework', { type: 'channel', name: 'Framework', emoji: '📢' }, 0);
 
                 if (!snap.exists()) return;
                 const chats = snap.val();
+
                 for (let cId in chats) {
-                    if (cId === 'channel_framework') continue; // Пропускаем, уже добавили
+                    if (cId === 'channel_framework') continue;
                     const chat = chats[cId];
+                    
                     if (chat.participants && chat.participants.includes(currentUser.phone)) {
-                        renderChatListItem(cId, chat);
+                        // Проверка на блок
+                        if(chat.type === 'direct') {
+                            const fPhone = chat.participants.find(p => p !== currentUser.phone);
+                            if(currentUser.blocked && currentUser.blocked[fPhone]) continue; // Пропускаем заблокированных
+                        }
+
+                        // Подсчет непрочитанных
+                        let unreadCount = 0;
+                        if(chat.messages) {
+                            for(let mId in chat.messages) {
+                                if(chat.messages[mId].sender !== currentUser.phone && chat.messages[mId].status !== 'read') {
+                                    unreadCount++;
+                                }
+                            }
+                        }
+                        renderChatListItem(cId, chat, unreadCount);
                     }
                 }
             });
         }
 
-        function renderChatListItem(chatId, chat) {
-            let name = chat.name, avatar = chat.emoji, infoText = 'Группа';
+        function renderChatListItem(chatId, chat, unreadCount) {
+            let name = chat.name, avatar = chat.emoji, infoText = t('group'), isOnline = false, fPhone = null;
             
-            if(chat.type === 'channel') infoText = 'Официальный канал';
+            if(chat.type === 'channel') infoText = t('channel');
             if(chat.type === 'direct') {
-                const fPhone = chat.participants.find(p => p !== currentUser.phone);
-                if(usersCache[fPhone]) { name = usersCache[fPhone].nickname; avatar = usersCache[fPhone].emoji; infoText = getStatusText(fPhone); }
+                fPhone = chat.participants.find(p => p !== currentUser.phone);
+                if(usersCache[fPhone]) {
+                    // Кастомное имя друга если есть
+                    name = (currentUser.contacts && currentUser.contacts[fPhone]) ? currentUser.contacts[fPhone] : usersCache[fPhone].nickname;
+                    avatar = usersCache[fPhone].emoji;
+                    isOnline = usersCache[fPhone].online;
+                    infoText = isOnline ? t('online') : t('offline');
+                }
             }
 
             const div = document.createElement('div');
-            div.className = `p-3 flex items-center gap-4 cursor-pointer rounded-2xl bg-dark active:bg-gray-800`;
-            div.onclick = () => openChat(chatId, name, avatar, chat);
+            div.className = `p-3 flex items-center justify-between rounded-2xl bg-dark active:bg-gray-800 relative overflow-hidden`;
+            
             div.innerHTML = `
-                <div class="w-14 h-14 bg-[#2c2c35] rounded-full flex items-center justify-center text-3xl flex-shrink-0">${avatar}</div>
-                <div class="flex-1 overflow-hidden">
-                    <div class="font-bold text-[17px] truncate text-white">${name}</div>
-                    <div class="text-sm truncate mt-0.5">${infoText}</div>
+                <div class="flex items-center gap-4 flex-1" onclick="openChat('${chatId}', '${name}', '${avatar}', ${JSON.stringify(chat).replace(/"/g, '&quot;')})">
+                    <div class="w-12 h-12 bg-[#2c2c35] rounded-full flex items-center justify-center text-2xl flex-shrink-0 ${isOnline ? 'online-ring' : ''}">${avatar}</div>
+                    <div class="flex-1 overflow-hidden">
+                        <div class="font-bold text-base truncate text-white">${name}</div>
+                        <div class="text-xs truncate ${isOnline ? 'text-cyan-400':'text-gray-500'}">${infoText}</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-2 z-10">
+                    ${unreadCount > 0 ? `<span class="bg-orange-500 text-black text-xs font-black px-2 py-0.5 rounded-full">${unreadCount}</span>` : ''}
+                    ${chatId !== 'channel_framework' ? `<button onclick="showContextMenu(event, '${chatId}', '${fPhone}')" class="text-gray-500 p-2 active:text-white"><i class="fas fa-ellipsis-v"></i></button>` : ''}
                 </div>
             `;
             document.getElementById('chats-list').appendChild(div);
         }
 
+        function showContextMenu(e, chatId, fPhone) {
+            e.preventDefault(); e.stopPropagation();
+            selectedCtxChatId = chatId; selectedCtxPhone = fPhone;
+            
+            const menu = document.getElementById('chat-context-menu');
+            menu.style.display = 'block';
+            menu.style.top = e.pageY + 'px';
+            menu.style.left = (e.pageX - 150) + 'px';
+
+            document.getElementById('btn-ctx-block').style.display = fPhone !== 'null' ? 'block' : 'none';
+            document.getElementById('btn-ctx-rename').style.display = fPhone !== 'null' ? 'block' : 'none';
+        }
+
+        async function triggerDeleteChat() {
+            if(confirm('Удалить этот чат?')) {
+                await db.ref(`chats/${selectedCtxChatId}/participants`).set(null); // Простое удаление связи чата
+                await db.ref(`chats/${selectedCtxChatId}`).remove();
+            }
+        }
+
+        async function triggerBlockUser() {
+            if(selectedCtxPhone && confirm('Заблокировать пользователя?')) {
+                await db.ref(`users/${currentUser.phone}/blocked/${selectedCtxPhone}`).set(true);
+                alert('Пользователь заблокирован');
+            }
+        }
+
+        async function triggerRenameFriend() {
+            if(!selectedCtxPhone) return;
+            const newName = prompt('Введите новое имя для друга (только для вас):');
+            if(newName) {
+                await db.ref(`users/${currentUser.phone}/contacts/${selectedCtxPhone}`).set(newName);
+            }
+        }
+
+        // === ЛОГИКА ЧАТА, СМАЙЛОВ И РЕДАКТИРОВАНИЯ ===
         function openChat(chatId, chatName, chatAvatar, chatData) {
             currentChatId = chatId;
             document.getElementById('current-chat-name').innerText = chatName;
-            document.getElementById('current-chat-avatar').innerText = chatAvatar;
+            document.getElementById('current-chat-avatar-container').innerText = chatAvatar;
             
-            // Настройка шапки и скрытие поля ввода для канала
+            const avatarEl = document.getElementById('current-chat-avatar-container');
+            avatarEl.className = "w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 text-2xl";
+            
             if(chatId === 'channel_framework') {
-                document.getElementById('current-chat-info').innerHTML = 'Официальный канал';
+                document.getElementById('current-chat-info').innerText = t('channel');
                 document.getElementById('input-area').style.display = (currentUser.phone === ADMIN_PHONE) ? 'flex' : 'none';
             } else {
                 document.getElementById('input-area').style.display = 'flex';
-                if(chatData.type === 'group') document.getElementById('current-chat-info').innerHTML = `${chatData.participants.length} участников &nbsp;<i class="fas fa-chevron-right text-[10px]"></i>`;
-                else document.getElementById('current-chat-info').innerHTML = getStatusText(chatData.participants.find(p=>p!==currentUser.phone));
+                if(chatData.type === 'group') {
+                    document.getElementById('current-chat-info').innerText = t('group');
+                } else {
+                    const fPhone = chatData.participants.find(p=>p!==currentUser.phone);
+                    const isOnline = usersCache[fPhone]?.online;
+                    document.getElementById('current-chat-info').innerText = isOnline ? t('online') : t('offline');
+                    if(isOnline) avatarEl.classList.add('online-ring');
+                }
             }
 
             document.getElementById('active-chat-screen').classList.remove('translate-x-full');
@@ -405,170 +560,199 @@
             messagesListener = `chats/${chatId}/messages`;
             
             db.ref(messagesListener).on('child_added', snap => {
-                const msg = snap.val(); const msgId = snap.key;
-                displayMessage(msgId, msg);
-                if (msg.sender !== currentUser.phone && msg.status === 'sent') db.ref(`${messagesListener}/${msgId}`).update({ status: 'read' });
+                displayMessage(snap.key, snap.val());
+                if (snap.val().sender !== currentUser.phone && snap.val().status !== 'read') {
+                    db.ref(`${messagesListener}/${snap.key}`).update({ status: 'read' });
+                }
             });
             db.ref(messagesListener).on('child_changed', snap => {
-                const msg = snap.val(); const statusEl = document.getElementById(`status-${snap.key}`);
-                if (statusEl && msg.sender === currentUser.phone) {
-                    statusEl.innerHTML = msg.status === 'read' ? '<i class="fas fa-check-double text-blue-500"></i>' : '<i class="fas fa-check text-gray-500"></i>';
+                const el = document.getElementById(`msg-${snap.key}`);
+                if(el) {
+                    // Обновляем текст и статус динамически
+                    const textContainer = el.querySelector('.msg-text');
+                    const statusContainer = el.querySelector('.msg-status');
+                    if(textContainer) textContainer.innerHTML = formatMessageText(snap.val().text) + (snap.val().edited ? ' <span class="text-[10px] opacity-60">(ред.)</span>' : '');
+                    if(statusContainer && snap.val().sender === currentUser.phone) statusContainer.innerHTML = getMessageStatusIcon(snap.val().status);
                 }
             });
         }
 
         function closeChat() {
             document.getElementById('active-chat-screen').classList.add('translate-x-full');
-            currentChatId = null; if(messagesListener) db.ref(messagesListener).off();
+            currentChatId = null; cancelEdit();
+        }
+
+        function isSingleEmoji(str) {
+            const emojiRegex = /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])$/u;
+            return emojiRegex.test(str.trim());
+        }
+
+        function formatMessageText(text) {
+            return text.replace(/\n/g, '<br>');
         }
 
         function displayMessage(msgId, msg) {
             const isMine = msg.sender === currentUser.phone;
             const senderData = usersCache[msg.sender] || { nickname: msg.sender, emoji: '👤' };
-            
-            let statusHTML = '<i class="far fa-clock"></i>'; 
-            if (msg.status === 'sent') statusHTML = '<i class="fas fa-check text-gray-600"></i>';
-            if (msg.status === 'read') statusHTML = '<i class="fas fa-check-double text-blue-800"></i>';
+            const singleEmoji = isSingleEmoji(msg.text);
 
             const div = document.createElement('div');
+            div.id = `msg-${msgId}`;
             div.className = `flex w-full ${isMine ? 'justify-end' : 'justify-start'}`;
-            div.innerHTML = `
-                ${!isMine ? `<div class="text-2xl mr-2 self-end mb-1">${senderData.emoji}</div>` : ''}
-                <div class="msg-bubble ${isMine ? 'msg-mine' : 'msg-theirs'}">
-                    ${!isMine && currentChatId !== 'channel_framework' ? `<div class="text-[11px] font-bold text-gray-400 mb-1 leading-none">${senderData.nickname}</div>` : ''}
-                    <div>${msg.text ? msg.text.replace(/\n/g, '<br>') : ''}</div>
-                    <div class="text-[11px] ${isMine ? 'text-orange-900' : 'text-gray-400'} mt-1 flex justify-end items-center gap-1 font-medium">
-                        ${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                        ${isMine ? `<span id="status-${msgId}" class="ml-1">${statusHTML}</span>` : ''}
+            
+            let bubbleHTML = '';
+            if(singleEmoji) {
+                // Если только 1 смайлик — увеличиваем его значительно
+                bubbleHTML = `<div class="text-6xl p-2 msg-text">${msg.text}</div>`;
+            } else {
+                bubbleHTML = `
+                    <div class="msg-bubble ${isMine ? 'msg-mine' : 'msg-theirs'}" onclick="handleMessageClick('${msgId}', ${msg.timestamp}, ${isMine})">
+                        ${!isMine && currentChatId !== 'channel_framework' ? `<div class="text-[11px] font-bold text-gray-400 mb-1 leading-none">${senderData.nickname}</div>` : ''}
+                        <div class="msg-text">${formatMessageText(msg.text)}${msg.edited ? ' <span class="text-[10px] opacity-50">(ред.)</span>' : ''}</div>
+                        <div class="text-[10px] ${isMine ? 'text-orange-950' : 'text-gray-400'} mt-1 flex justify-end items-center gap-1 font-medium">
+                            ${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                            ${isMine ? `<span class="msg-status ml-1">${getMessageStatusIcon(msg.status)}</span>` : ''}
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
+            }
+
+            div.innerHTML = `${!isMine && !singleEmoji ? `<div class="text-2xl mr-2 self-end mb-1">${senderData.emoji}</div>` : ''}${bubbleHTML}`;
+            
             const area = document.getElementById('messages-area'); area.appendChild(div);
             setTimeout(() => { area.scrollTop = area.scrollHeight; }, 50);
         }
 
+        // Клик по сообщению для вызова редактирования (в первые 2 минуты)
+        function handleMessageClick(msgId, timestamp, isMine) {
+            if(!isMine) return;
+            const diff = Date.now() - timestamp;
+            if(diff < 120000) { // 2 минуты
+                if(confirm('Редактировать сообщение?')) {
+                    editingMessageId = msgId;
+                    const currentText = document.getElementById(`msg-${msgId}`).querySelector('.msg-text').innerText.replace(' (ред.)','');
+                    document.getElementById('message-input').value = currentText;
+                    document.getElementById('edit-bar').classList.remove('hidden');
+                }
+            }
+        }
+
+        function cancelEdit() {
+            editingMessageId = null;
+            document.getElementById('message-input').value = '';
+            document.getElementById('edit-bar').classList.add('hidden');
+        }
+
+        // === ОТПРАВКА С АНТИ-СПАМОМ ===
         async function sendMessage() {
+            if (Date.now() < spamBlockedUntil) { return alert(t('spamWarn')); }
+
             const input = document.getElementById('message-input');
             const text = input.value.trim();
             if (!text || !currentChatId) return;
 
+            // Логика Анти-спама
+            messageTimestamps = messageTimestamps.filter(t => Date.now() - t < 20000);
+            if (messageTimestamps.length >= 3) {
+                spamBlockedUntil = Date.now() + 15000;
+                startSpamCountdown(15);
+                return;
+            }
+            messageTimestamps.push(Date.now());
+
             input.value = ''; input.style.height = 'auto';
-            
-            await db.ref(`chats/${currentChatId}/messages`).push().set({ 
-                sender: currentUser.phone, text: text, timestamp: Date.now(), status: 'sent' 
-            });
-        }
 
-        // === ДРУЗЬЯ И ИНФО О ГРУППЕ ===
-        async function createDirectChat(forcePhone = null) {
-            const phone = forcePhone || document.getElementById('new-chat-phone').value.trim();
-            if(!phone || phone === currentUser.phone) return alert('Неверный номер.');
-            if(!usersCache[phone]) return alert('Пользователь не найден.');
-
-            // Добавляем в друзья
-            await db.ref(`users/${currentUser.phone}/contacts/${phone}`).set(true);
-            
-            // Создаем чат
-            const chatId = [currentUser.phone, phone].sort().join('_');
-            await db.ref('chats/' + chatId).update({ type: 'direct', participants: [currentUser.phone, phone] });
-            
-            hideModal('new-chat-modal'); document.getElementById('new-chat-phone').value = '';
-            alert('Пользователь добавлен в друзья!');
-        }
-
-        function renderContacts() {
-            const list = document.getElementById('contacts-list-area'); list.innerHTML = '';
-            let hasFriends = false;
-            for(let phone in currentUser.contacts) {
-                if(!usersCache[phone]) continue;
-                hasFriends = true;
-                const u = usersCache[phone];
-                list.innerHTML += `
-                    <div class="flex items-center justify-between bg-[#2c2c35] p-3 rounded-xl mb-2">
-                        <div class="flex items-center gap-3">
-                            <span class="text-3xl">${u.emoji}</span>
-                            <div class="flex flex-col"><span class="font-bold text-white">${u.nickname}</span><span class="text-xs ${u.online ? 'text-green-500':'text-gray-500'}">${u.online ? 'В сети' : 'Офлайн'}</span></div>
-                        </div>
-                        <div class="flex gap-3">
-                            <button onclick="createDirectChat('${phone}'); hideModal('contacts-modal')" class="text-blue-400 p-2"><i class="fas fa-comment"></i></button>
-                            <button onclick="removeFriend('${phone}')" class="text-red-500 p-2"><i class="fas fa-trash"></i></button>
-                        </div>
-                    </div>`;
-            }
-            if(!hasFriends) list.innerHTML = '<div class="text-center text-gray-500 mt-10">У вас пока нет друзей</div>';
-        }
-
-        async function removeFriend(phone) {
-            if(confirm('Удалить из друзей? Чат останется.')) {
-                await db.ref(`users/${currentUser.phone}/contacts/${phone}`).remove();
-            }
-        }
-
-        function openChatInfo() {
-            if(currentChatId === 'channel_framework') return; // Нет инфо для канала
-            
-            db.ref(`chats/${currentChatId}`).once('value', snap => {
-                const chat = snap.val();
-                if(chat.type === 'group') {
-                    const list = document.getElementById('group-members-area'); list.innerHTML = '';
-                    chat.participants.forEach(phone => {
-                        const u = usersCache[phone] || { nickname: 'Неизвестный', emoji: '👤' };
-                        const isMe = phone === currentUser.phone;
-                        const isFriend = !!currentUser.contacts[phone];
-                        
-                        let buttons = '';
-                        if(!isMe) {
-                            buttons += `<button onclick="createDirectChat('${phone}'); hideModal('group-info-modal')" class="text-blue-400 p-2 ml-2"><i class="fas fa-comment"></i></button>`;
-                            if(!isFriend) buttons += `<button onclick="createDirectChat('${phone}')" class="text-green-400 p-2 ml-2" title="Добавить в друзья"><i class="fas fa-user-plus"></i></button>`;
-                        }
-
-                        list.innerHTML += `
-                            <div class="flex items-center justify-between bg-[#2c2c35] p-3 rounded-xl">
-                                <div class="flex items-center gap-3">
-                                    <span class="text-2xl">${u.emoji}</span>
-                                    <span class="font-bold text-white">${u.nickname} ${isMe ? '(Вы)' : ''}</span>
-                                </div>
-                                <div class="flex">${buttons}</div>
-                            </div>`;
+            if(editingMessageId) {
+                // Логика изменения
+                await db.ref(`chats/${currentChatId}/messages/${editingMessageId}`).update({
+                    text: text, edited: true
+                });
+                cancelEdit();
+            } else {
+                // Обычная отправка
+                const initialStatus = navigator.onLine ? 'sent' : 'error';
+                const msgRef = db.ref(`chats/${currentChatId}/messages`).push();
+                
+                try {
+                    await msgRef.set({ 
+                        sender: currentUser.phone, text: text, timestamp: Date.now(), status: initialStatus 
                     });
-                    showModal('group-info-modal');
+                } catch(e) {
+                    await msgRef.update({ status: 'error' });
                 }
-            });
+            }
         }
 
-        // === СОЗДАНИЕ ГРУППЫ ===
-        let selectedForGroup = [];
+        function startSpamCountdown(sec) {
+            const el = document.getElementById('spam-countdown');
+            el.classList.remove('hidden');
+            el.innerText = `${t('spamWarn')} (${sec}s)`;
+            
+            const interval = setInterval(() => {
+                sec--;
+                if(sec <= 0) {
+                    clearInterval(interval);
+                    el.classList.add('hidden');
+                } else {
+                    el.innerText = `${t('spamWarn')} (${sec}s)`;
+                }
+            }, 1000);
+        }
+
+        // === ДОБАВЛЕНИЕ ПО USERNAME И СОЗДАНИЕ ГРУПП ===
+        async function addFriendByUsername() {
+            let username = document.getElementById('new-chat-username').value.trim().toLowerCase();
+            if(!username.startsWith('@')) username = '@' + username;
+
+            if(username === currentUser.username) return alert('Это ваш собственный никнейм');
+
+            const cleanName = username.replace('@','');
+            const snap = await db.ref('usernames/' + cleanName).once('value');
+            if(!snap.exists()) return alert('Пользователь не найден');
+
+            const friendPhone = snap.val();
+            
+            // Добавляем в друзья
+            await db.ref(`users/${currentUser.phone}/contacts/${friendPhone}`).set(usersCache[friendPhone].nickname || "Друг");
+            
+            // Создаем диалог
+            const chatId = [currentUser.phone, friendPhone].sort().join('_');
+            await db.ref('chats/' + chatId).update({ type: 'direct', participants: [currentUser.phone, friendPhone] });
+            
+            hideModal('new-chat-modal');
+            document.getElementById('new-chat-username').value = '';
+            alert('Успешно добавлено!');
+        }
+
         function showGroupModal() {
-            showModal('new-group-modal'); selectedForGroup = [];
-            document.getElementById('group-count').innerText = '0';
+            showModal('new-group-modal');
             const list = document.getElementById('group-users-list'); list.innerHTML = '';
             
             for (let phone in currentUser.contacts) {
                 const user = usersCache[phone]; if(!user) continue;
+                const displayName = currentUser.contacts[phone] || user.nickname;
                 list.innerHTML += `
                     <label class="flex items-center justify-between bg-[#2c2c35] p-4 rounded-xl mb-2">
-                        <div class="flex items-center gap-3"><span class="text-2xl">${user.emoji}</span><span class="font-bold text-white">${user.nickname}</span></div>
-                        <input type="checkbox" class="w-6 h-6 accent rounded-full" value="${phone}" onchange="handleGroupCheck(this)">
+                        <div class="flex items-center gap-3"><span class="text-2xl">${user.emoji}</span><span class="font-bold text-white">${displayName}</span></div>
+                        <input type="checkbox" class="w-6 h-6 accent rounded-full group-cb" value="${phone}">
                     </label>`;
             }
-            if(list.innerHTML === '') list.innerHTML = '<div class="text-gray-500 text-sm text-center mt-4">Добавьте друзей, чтобы создать группу</div>';
-        }
-
-        function handleGroupCheck(cb) {
-            if (cb.checked) {
-                if (selectedForGroup.length >= 19) { cb.checked = false; return alert('Максимум 20 участников'); }
-                selectedForGroup.push(cb.value);
-            } else { selectedForGroup = selectedForGroup.filter(p => p !== cb.value); }
-            document.getElementById('group-count').innerText = selectedForGroup.length;
         }
 
         async function createGroupChat() {
             const name = document.getElementById('new-group-name').value.trim();
             if (!name) return alert('Введите название');
-            if (selectedForGroup.length === 0) return alert('Выберите участников');
+            
+            const checkedBoxes = document.querySelectorAll('.group-cb:checked');
+            let participants = [currentUser.phone];
+            checkedBoxes.forEach(cb => participants.push(cb.value));
+
+            if (participants.length < 2) return alert('Выберите хотя бы одного друга');
+
             const chatId = 'group_' + Date.now();
-            await db.ref('chats/' + chatId).set({ type: 'group', name: name, emoji: selectedGroupEmoji, participants: [currentUser.phone, ...selectedForGroup] });
-            hideModal('new-group-modal'); document.getElementById('new-group-name').value = '';
+            await db.ref('chats/' + chatId).set({ type: 'group', name: name, emoji: selectedGroupEmoji, participants: participants });
+            hideModal('new-group-modal');
+            document.getElementById('new-group-name').value = '';
         }
 
     </script>
