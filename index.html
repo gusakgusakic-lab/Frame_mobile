@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Framework Mobile CS2 Edition</title>
+    <title>Framework Tactical Node</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -16,9 +16,9 @@
             -webkit-tap-highlight-color: transparent; 
         }
         
-        /* CS2 Glassmorphism Стили */
+        /* CS2 Minimalist Glassmorphism Стили */
         .glass-panel {
-            background: rgba(20, 22, 28, 0.75);
+            background: rgba(20, 22, 28, 0.8);
             backdrop-filter: blur(16px);
             -webkit-backdrop-filter: blur(16px);
             border: 1px solid rgba(255, 255, 255, 0.05);
@@ -31,23 +31,23 @@
         
         ::-webkit-scrollbar { display: none; }
         
-        /* Кастомный статус (Красная рамка в стиле CS2/Телеграм) */
+        /* Статус в красной рамке (CS2 / Telegram стиль) */
         .custom-badge {
             border: 1px solid #ff3b30;
             color: #ff453a;
-            background: rgba(255, 59, 48, 0.12);
+            background: rgba(255, 59, 48, 0.15);
             padding: 1px 5px;
             border-radius: 4px;
             font-size: 10px;
-            font-weight: 800;
+            font-weight: 900;
             text-transform: uppercase;
             letter-spacing: 0.05em;
             display: inline-block;
             vertical-align: middle;
-            box-shadow: 0 0 6px rgba(255, 59, 48, 0.2);
+            box-shadow: 0 0 8px rgba(255, 59, 48, 0.25);
         }
 
-        /* Пузыри сообщений */
+        /* Пузыри тактических сообщений */
         .msg-bubble { 
             max-width: 82%; 
             padding: 10px 14px; 
@@ -56,39 +56,39 @@
             position: relative; 
             font-size: 15px;
             border: 1px solid rgba(255, 255, 255, 0.03);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
         }
         .msg-mine { 
-            background: rgba(252, 163, 17, 0.2); 
+            background: rgba(252, 163, 17, 0.18); 
             color: #ffffff; 
             border-bottom-right-radius: 2px; 
             border: 1px solid rgba(252, 163, 17, 0.3);
             margin-left: auto; 
         }
         .msg-theirs { 
-            background: rgba(35, 39, 51, 0.7); 
+            background: rgba(35, 39, 51, 0.75); 
             color: #ffffff; 
             border-bottom-left-radius: 2px; 
             margin-right: auto;
         }
 
-        /* Стикеры ходьбы с анимацией */
+        /* Анимированные Стикеры Ходьбы */
         .sticker-anim {
-            animation: walkingSticker 1.6s infinite ease-in-out;
+            animation: walkingSticker 1.4s infinite ease-in-out;
             display: inline-block;
         }
         @keyframes walkingSticker {
             0% { transform: translateY(0) rotate(0deg); }
-            25% { transform: translateY(-6px) rotate(-4deg); }
+            25% { transform: translateY(-7px) rotate(-5deg); }
             50% { transform: translateY(0) rotate(0deg); }
-            75% { transform: translateY(-6px) rotate(4deg); }
+            75% { transform: translateY(-7px) rotate(5deg); }
             100% { transform: translateY(0) rotate(0deg); }
         }
 
-        /* Всплывающее меню сообщения (Bottom Sheet) */
+        /* Контекстное Меню Сообщения */
         .bottom-sheet {
             transform: translateY(100%);
-            transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+            transition: transform 0.22s cubic-bezier(0.1, 0.8, 0.3, 1);
         }
         .bottom-sheet.active {
             transform: translateY(0);
@@ -102,23 +102,23 @@
 </head>
 <body class="h-[100dvh] w-full overflow-hidden relative select-none">
 
-    <div id="forward-banner" class="hidden absolute top-0 left-0 right-0 h-12 bg-orange-600/90 text-white z-[60] flex items-center justify-between px-4 text-sm font-bold backdrop-blur-md">
-        <span><i class="fas fa-share mr-2"></i> Выберите чат для пересылки сообщения</span>
-        <button onclick="cancelForwarding()" class="bg-black/20 px-3 py-1 rounded-md text-xs">Отмена</button>
+    <div id="forward-banner" class="hidden absolute top-0 left-0 right-0 h-14 bg-orange-600 text-white z-[60] flex items-center justify-between px-4 text-xs font-black uppercase tracking-wider backdrop-blur-md">
+        <span><i class="fas fa-share mr-2 animate-pulse"></i> Пересылка: Выберите целевой узел</span>
+        <button onclick="cancelForwarding()" class="bg-black/30 px-3 py-1.5 rounded-md text-[10px]">Отмена</button>
     </div>
 
     <div id="toast-notification" class="absolute top-4 left-0 right-0 z-[100] flex justify-center pointer-events-none opacity-0 transition-opacity duration-300">
-        <div class="bg-orange-500 text-black px-5 py-2.5 rounded-full font-black shadow-xl flex items-center gap-2 text-xs uppercase tracking-wider">
-            <i class="fas fa-spinner fa-spin"></i> <span id="toast-text">Обработка...</span>
+        <div class="bg-orange-500 text-black px-5 py-2.5 rounded-full font-black shadow-2xl flex items-center gap-2 text-xs uppercase tracking-widest">
+            <i class="fas fa-satellite-dish fa-spin"></i> <span id="toast-text">Обработка...</span>
         </div>
     </div>
 
-    <div id="auth-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#0d0e12] p-6 hidden">
-        <div class="w-full max-w-sm glass-panel p-6 rounded-2xl border border-white/10 shadow-2xl">
+    <div id="auth-screen" class="absolute inset-0 z-50 flex flex-col items-center justify-center bg-[#07080a] p-6 hidden">
+        <div class="w-full max-w-sm glass-panel p-6 rounded-2xl shadow-2xl">
             <div class="text-center mb-6">
-                <div class="text-5xl mb-2 filter drop-shadow-[0_0_10px_rgba(252,163,17,0.4)]">⚡</div>
+                <div class="text-5xl mb-2 filter drop-shadow-[0_0_15px_rgba(252,163,17,0.5)]">⚡</div>
                 <h1 class="text-2xl font-black tracking-widest text-white uppercase">Framework</h1>
-                <p class="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Tactical Messaging Node</p>
+                <p class="text-[10px] text-gray-500 uppercase tracking-widest mt-1">Mobile Tactical Matrix</p>
             </div>
 
             <div class="space-y-4">
@@ -127,14 +127,14 @@
                 <div id="reg-fields" class="hidden space-y-4">
                     <input type="text" id="username-input" placeholder="@USERNAME" class="w-full bg-black/40 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-orange-500 text-sm font-semibold tracking-wider placeholder-gray-600">
                     <input type="text" id="nickname-input" placeholder="НИКНЕЙМ" class="w-full bg-black/40 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-orange-500 text-sm font-semibold tracking-wider placeholder-gray-600">
-                    <div id="emoji-picker" class="flex gap-2 overflow-x-auto bg-black/20 p-2 rounded-xl justify-start"></div>
+                    <div id="emoji-picker" class="flex gap-2 overflow-x-auto bg-black/20 p-2 rounded-xl"></div>
                 </div>
 
                 <input type="password" id="password-input" placeholder="ПАРОЛЬ" class="w-full bg-black/40 border border-white/10 text-white p-4 rounded-xl outline-none focus:border-orange-500 text-sm font-semibold tracking-wider placeholder-gray-600">
                 
-                <button id="auth-btn" onclick="handleAuth()" class="w-full bg-orange-500 hover:bg-orange-600 text-black font-black p-4 rounded-xl mt-4 text-sm uppercase tracking-widest transition-colors shadow-lg shadow-orange-500/20">Войти</button>
+                <button id="auth-btn" onclick="handleAuth()" class="w-full bg-orange-500 hover:bg-orange-600 text-black font-black p-4 rounded-xl mt-4 text-sm uppercase tracking-widest transition-colors shadow-lg shadow-orange-500/20">Войти в сеть</button>
             </div>
-            <div class="mt-6 text-center"><button onclick="toggleAuthMode()" class="text-xs text-gray-500 uppercase tracking-wider hover:text-white" id="auth-toggle-text">Создать новый узел (аккаунт)</button></div>
+            <div class="mt-6 text-center"><button onclick="toggleAuthMode()" class="text-xs text-gray-500 uppercase tracking-wider hover:text-white" id="auth-toggle-text">Создать новый узел</button></div>
         </div>
     </div>
 
@@ -146,11 +146,11 @@
                     <button onclick="showModal('settings-modal')" class="text-gray-400 active:text-white text-lg"><i class="fas fa-sliders-h"></i></button>
                     <div id="my-avatar" class="text-2xl bg-white/5 rounded-full w-10 h-10 flex items-center justify-center border border-white/10">👤</div>
                     <div class="flex flex-col">
-                        <div class="flex items-center gap-1">
+                        <div class="flex items-center gap-1.5">
                             <span id="my-nickname" class="font-bold text-white text-sm leading-tight">...</span>
                             <div id="my-badge-container"></div>
                         </div>
-                        <span id="my-username" class="text-[10px] text-orange-500 font-mono">@username</span>
+                        <span id="my-username" class="text-[10px] text-orange-500 font-mono tracking-tight">@username</span>
                     </div>
                 </div>
             </div>
@@ -158,20 +158,20 @@
             <div id="chats-list" class="flex-1 overflow-y-auto px-3 py-3 space-y-2"></div>
             
             <div class="p-3 glass-panel flex gap-2 flex-shrink-0">
-                <button onclick="showModal('new-chat-modal')" class="flex-1 bg-white/5 border border-white/10 active:bg-white/10 p-3 rounded-xl text-xs font-black uppercase tracking-wider text-center"><i class="fas fa-plus mr-1 text-orange-500"></i> Друг</button>
-                <button onclick="showGroupModal()" class="flex-1 bg-white/5 border border-white/10 active:bg-white/10 p-3 rounded-xl text-xs font-black uppercase tracking-wider text-center"><i class="fas fa-users mr-1 text-green-500"></i> Группа</button>
+                <button onclick="showModal('new-chat-modal')" class="flex-1 bg-white/5 border border-white/10 active:bg-white/10 p-3 rounded-xl text-xs font-black uppercase tracking-wider text-center"><i class="fas fa-plus mr-1 text-orange-500"></i> Сектор (Друг)</button>
+                <button onclick="showGroupModal()" class="flex-1 bg-white/5 border border-white/10 active:bg-white/10 p-3 rounded-xl text-xs font-black uppercase tracking-wider text-center"><i class="fas fa-users mr-1 text-cyan-500"></i> Группа</button>
             </div>
         </div>
 
-        <div id="active-chat-screen" class="absolute inset-0 flex flex-col bg-[#0e1014] z-20 w-full h-full transition-transform duration-300 transform translate-x-full">
+        <div id="active-chat-screen" class="absolute inset-0 flex flex-col bg-[#0b0c10] z-20 w-full h-full transition-transform duration-300 transform translate-x-full">
             <div class="h-16 glass-panel flex items-center px-2 flex-shrink-0 justify-between z-30">
                 <div class="flex items-center overflow-hidden">
                     <button onclick="closeChat()" class="p-3 text-orange-500 active:text-white"><i class="fas fa-arrow-left"></i></button>
                     <div class="flex items-center gap-3 ml-1 overflow-hidden">
                         <div id="current-chat-avatar" class="w-10 h-10 flex items-center justify-center rounded-full bg-white/5 border border-white/10 text-xl flex-shrink-0">💬</div>
                         <div class="flex flex-col overflow-hidden">
-                            <span id="current-chat-name" class="font-bold text-white text-sm truncate max-w-[160px]">...</span>
-                            <span id="current-chat-info" class="text-[10px] text-gray-500 font-medium truncate">...</span>
+                            <span id="current-chat-name" class="font-bold text-white text-sm truncate max-w-[150px]">...</span>
+                            <span id="current-chat-info" class="text-[10px] text-gray-500 font-mono tracking-tight truncate">...</span>
                         </div>
                     </div>
                 </div>
@@ -180,7 +180,7 @@
 
             <div id="messages-area" class="flex-1 overflow-y-auto p-4 space-y-3 flex flex-col pb-6"></div>
 
-            <div id="action-bar" class="hidden bg-black/40 border-t border-white/5 px-4 py-2 flex justify-between items-center text-xs backdrop-blur-md">
+            <div id="action-bar" class="hidden bg-black/50 border-t border-white/5 px-4 py-2.5 flex justify-between items-center text-xs backdrop-blur-md">
                 <span class="text-orange-500 flex items-center gap-2">
                     <i id="action-bar-icon" class="fas fa-reply"></i>
                     <span id="action-bar-text">Действие...</span>
@@ -188,9 +188,9 @@
                 <button onclick="cancelMessageAction()" class="text-gray-400 p-1"><i class="fas fa-times"></i></button>
             </div>
 
-            <div id="sticker-panel" class="hidden h-32 bg-[#12141c] border-t border-white/5 p-3 flex-shrink-0 overflow-x-auto flex gap-4 items-center">
+            <div id="sticker-panel" class="hidden h-28 bg-[#0d0f14] border-t border-white/5 p-3 flex-shrink-0 overflow-x-auto flex gap-4 items-center">
                 <div onclick="sendSticker('🚶')" class="text-4xl cursor-pointer p-2 bg-white/5 rounded-xl active:scale-95"><span class="sticker-anim">🚶</span></div>
-                <div onclick="sendSticker('跑')" class="text-4xl cursor-pointer p-2 bg-white/5 rounded-xl active:scale-95"><span class="sticker-anim">🏃</span></div>
+                <div onclick="sendSticker('🏃')" class="text-4xl cursor-pointer p-2 bg-white/5 rounded-xl active:scale-95"><span class="sticker-anim">🏃</span></div>
                 <div onclick="sendSticker('🧟')" class="text-4xl cursor-pointer p-2 bg-white/5 rounded-xl active:scale-95"><span class="sticker-anim">🧟</span></div>
                 <div onclick="sendSticker('🚶‍♂️')" class="text-4xl cursor-pointer p-2 bg-white/5 rounded-xl active:scale-95"><span class="sticker-anim">🚶‍♂️</span></div>
                 <div onclick="sendSticker('🏃‍♀️')" class="text-4xl cursor-pointer p-2 bg-white/5 rounded-xl active:scale-95"><span class="sticker-anim">🏃‍♀️</span></div>
@@ -203,68 +203,68 @@
                     <button onclick="document.getElementById('file-upload').click()" class="text-gray-400 p-3 bg-white/5 border border-white/5 rounded-xl active:text-white"><i class="fas fa-paperclip"></i></button>
                     <button onclick="toggleStickerPanel()" class="text-gray-400 p-3 bg-white/5 border border-white/5 rounded-xl active:text-white"><i class="fas fa-laugh"></i></button>
                     
-                    <textarea id="message-input" rows="1" placeholder="Сообщение..." class="flex-1 bg-black/40 border border-white/5 text-white px-4 py-3 rounded-xl outline-none resize-none max-h-24 text-sm font-medium" oninput="onInputText()"></textarea>
+                    <textarea id="message-input" rows="1" placeholder="Зашифрованное сообщение..." class="flex-1 bg-black/40 border border-white/5 text-white px-4 py-3 rounded-xl outline-none resize-none max-h-24 text-sm font-medium" oninput="onInputText()"></textarea>
                     
                     <button id="mic-btn" onclick="toggleVoiceRecord()" class="text-gray-400 p-3 bg-white/5 border border-white/5 rounded-xl active:text-white"><i class="fas fa-microphone"></i></button>
                     <button id="send-btn" onclick="sendMessage()" class="bg-orange-500 text-black w-12 h-12 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 active:scale-95 hidden"><i class="fas fa-paper-plane"></i></button>
                 </div>
-                <div id="voice-timer" class="hidden text-center text-xs text-red-500 font-mono font-bold mt-2 animate-pulse"><i class="fas fa-circle mr-1"></i> ИДЕТ ЗАПИСЬ: <span id="v-time">0:00</span></div>
+                <div id="voice-timer" class="hidden text-center text-xs text-red-500 font-mono font-bold mt-2 animate-pulse"><i class="fas fa-circle mr-1"></i> RECORDING NODE: <span id="v-time">0:00</span></div>
             </div>
         </div>
     </div>
 
-    <div id="msg-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 z-50 bg-[#12141a]/95 border-t border-white/10 rounded-t-2xl p-4 flex flex-col space-y-1 backdrop-blur-lg shadow-2xl hidden">
+    <div id="msg-sheet" class="bottom-sheet fixed bottom-0 left-0 right-0 z-50 bg-[#101218]/95 border-t border-white/10 rounded-t-2xl p-4 flex flex-col space-y-1 backdrop-blur-lg shadow-2xl hidden">
         <div class="w-12 h-1 bg-white/20 rounded-full mx-auto mb-4"></div>
-        <button onclick="sheetAction('like')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">❤️ Лайк / Убрать лайк</button>
-        <button onclick="sheetAction('reply')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">↩️ Ответить</button>
-        <button onclick="sheetAction('forward')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">➡️ Переслать</button>
-        <button id="sheet-edit-btn" onclick="sheetAction('edit')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">✏️ Редактировать</button>
-        <button id="sheet-delete-btn" onclick="sheetAction('delete')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-red-500">🗑️ Удалить</button>
-        <button onclick="closeMessageSheet()" class="w-full text-center p-3.5 text-xs font-black uppercase tracking-wider text-gray-500 pt-4">Закрыть</button>
+        <button onclick="sheetAction('like')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">❤️ Поставить / Убрать лайк</button>
+        <button onclick="sheetAction('reply')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">↩️ Ответить на пакет</button>
+        <button onclick="sheetAction('forward')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">➡️ Переслать в другой узел</button>
+        <button id="sheet-edit-btn" onclick="sheetAction('edit')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-white">✏️ Редактировать текст</button>
+        <button id="sheet-delete-btn" onclick="sheetAction('delete')" class="w-full text-left p-3.5 text-sm font-bold active:bg-white/5 flex items-center gap-3 text-red-500">🗑️ Уничтожить сообщение</button>
+        <button onclick="closeMessageSheet()" class="w-full text-center p-3.5 text-xs font-black uppercase tracking-wider text-gray-500 pt-4">Отмена</button>
     </div>
 
     <div id="settings-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm">
         <div class="bg-[#0f1115] w-full h-[85dvh] rounded-t-2xl flex flex-col border-t border-white/10">
             <div class="p-4 border-b border-white/5 flex justify-between items-center">
-                <h3 class="text-sm font-black uppercase tracking-widest text-white">Параметры Узла</h3>
+                <h3 class="text-xs font-black uppercase tracking-widest text-white">Параметры Вашего Узла</h3>
                 <button onclick="hideModal('settings-modal')" class="text-gray-400 p-2"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-5 flex-1 overflow-y-auto space-y-4 font-semibold text-sm">
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Кастомный статус (В красной рамке)</label>
-                    <input type="text" id="edit-custom-status" placeholder="Напр: БУРАС" class="w-full bg-black/40 border border-white/5 text-white p-3 rounded-xl outline-none focus:border-red-500 text-xs font-bold uppercase tracking-wider">
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Кастомный статус (Красная рамка)</label>
+                    <input type="text" id="edit-custom-status" placeholder="Пример: БУРАС" class="w-full bg-black/40 border border-white/5 text-white p-3 rounded-xl outline-none focus:border-red-500 text-xs font-bold uppercase tracking-wider">
                 </div>
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Никнейм</label>
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Локальный Никнейм</label>
                     <input type="text" id="edit-nick" class="w-full bg-black/40 border border-white/5 text-white p-3 rounded-xl outline-none">
                 </div>
                 <div>
-                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Сменить Эмодзи</label>
+                    <label class="block text-xs uppercase tracking-wider text-gray-500 mb-2">Изменить Эмодзи-Аватар</label>
                     <div id="settings-emoji-list" class="flex gap-2 overflow-x-auto bg-black/20 p-2 rounded-xl"></div>
                 </div>
-                <button onclick="saveProfile()" class="w-full bg-orange-500 text-black font-black p-3.5 rounded-xl text-xs uppercase tracking-widest mt-4">Сохранить</button>
-                <button onclick="logout()" class="w-full bg-red-950/40 text-red-500 font-bold p-3.5 rounded-xl text-xs uppercase tracking-widest border border-red-900/30">Выйти из узла</button>
+                <button onclick="saveProfile()" class="w-full bg-orange-500 text-black font-black p-3.5 rounded-xl text-xs uppercase tracking-widest mt-4">Сохранить изменения</button>
+                <button onclick="logout()" class="w-full bg-red-950/40 text-red-500 font-bold p-3.5 rounded-xl text-xs uppercase tracking-widest border border-red-900/30">Отключить узел (Выйти)</button>
             </div>
         </div>
     </div>
 
     <div id="new-chat-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60">
         <div class="bg-[#0f1115] w-full rounded-t-2xl p-5 pb-10 border-t border-white/10">
-            <h3 class="text-xs font-black uppercase tracking-widest text-white mb-4">Добавить узел друга</h3>
-            <input type="text" id="new-chat-username" placeholder="@USERNAME ДРУГА" class="w-full bg-black/40 border border-white/5 text-white p-4 rounded-xl mb-4 outline-none text-sm uppercase tracking-wider font-mono">
-            <button onclick="addFriendByUsername()" class="w-full bg-orange-500 text-black font-black p-4 rounded-xl text-xs uppercase tracking-widest">Инициализировать соединение</button>
+            <h3 class="text-xs font-black uppercase tracking-widest text-white mb-4">Подключить узел по юзернейму</h3>
+            <input type="text" id="new-chat-username" placeholder="@USERNAME ДРУГА" class="w-full bg-black/40 border border-white/5 text-white p-4 rounded-xl mb-4 outline-none text-sm font-mono uppercase">
+            <button onclick="addFriendByUsername()" class="w-full bg-orange-500 text-black font-black p-4 rounded-xl text-xs uppercase tracking-widest">Установить соединение</button>
         </div>
     </div>
 
     <div id="new-group-modal" class="hidden fixed inset-0 z-50 flex items-end justify-center bg-black/60">
         <div class="bg-[#0f1115] w-full h-[80dvh] rounded-t-2xl flex flex-col border-t border-white/10">
             <div class="p-4 border-b border-white/5 flex justify-between items-center">
-                <button onclick="hideModal('new-group-modal')" class="text-xs font-bold text-gray-500 uppercase">Отмена</button>
-                <h3 class="text-xs font-black uppercase tracking-widest text-white">Новая Группа</h3>
+                <button onclick="hideModal('new-group-modal')" class="text-xs font-bold text-gray-500 uppercase">Назад</button>
+                <h3 class="text-xs font-black uppercase tracking-widest text-white">Создание тактической группы</h3>
                 <button onclick="createGroupChat()" class="text-xs font-black uppercase tracking-widest text-orange-500">Создать</button>
             </div>
             <div class="p-4 flex-1 overflow-y-auto">
-                <input type="text" id="new-group-name" placeholder="НАЗВАНИЕ ГРУППЫ" class="w-full bg-black/40 border border-white/5 text-white p-4 rounded-xl mb-4 outline-none text-sm font-bold uppercase tracking-wider">
+                <input type="text" id="new-group-name" placeholder="НАЗВАНИЕ ТАКТИЧЕСКОЙ ГРУППЫ" class="w-full bg-black/40 border border-white/5 text-white p-4 rounded-xl mb-4 outline-none text-sm font-bold uppercase">
                 <div id="group-users-list" class="space-y-2 pb-10"></div>
             </div>
         </div>
@@ -274,7 +274,7 @@
     <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
     <script>
-        // КЛЮЧИ СИСТЕМЫ ПОЛУЧЕННЫЕ ОТ КЛИЕНТА
+        // ТВOИ УНИКАЛЬНЫЕ КЛЮЧИ И ОБЛАЧНЫЕ НАСТРОЙКИ
         const CLOUDINARY_CLOUD_NAME = "dgrg5wra6"; 
         const CLOUDINARY_PRESET = "my_unique_chat_preset_2026_x"; 
 
@@ -287,11 +287,12 @@
             messagingSenderId: "101596985169",
             appId: "1:101596985169:web:3474135d7496f5fa314570"
         };
+        
         if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
         const db = firebase.database();
 
         let currentUser = null; let currentChatId = null; let usersCache = {};
-        let messagesListener = null; let activeAction = null; // 'reply' или 'edit'
+        let messagesListener = null; let activeAction = null; 
         let actionMessageId = null; let selectedMessageData = null; let forwardingMessageObj = null;
         
         let mediaRecorder = null; let audioChunks = []; let isRecording = false; let voiceTimerInt = null; let voiceSeconds = 0;
@@ -309,7 +310,7 @@
         function toggleAuthMode() {
             let reg = document.getElementById('reg-fields');
             reg.classList.toggle('hidden');
-            document.getElementById('auth-toggle-text').innerText = reg.classList.contains('hidden') ? 'Создать новый узел (аккаунт)' : 'Уже есть узел? Войти';
+            document.getElementById('auth-toggle-text').innerText = reg.classList.contains('hidden') ? 'Создать новый узел' : 'Уже зарегистрированы? Войти';
         }
 
         function initAuth() {
@@ -325,7 +326,7 @@
         async function handleAuth() {
             const phone = document.getElementById('phone-input').value.trim();
             const pass = document.getElementById('password-input').value.trim();
-            if(!phone || !pass) return alert('Заполните базовые поля');
+            if(!phone || !pass) return alert('Заполните ключевые поля данных');
             
             let isReg = !document.getElementById('reg-fields').classList.contains('hidden');
             try {
@@ -336,9 +337,9 @@
                 } else {
                     const nick = document.getElementById('nickname-input').value.trim();
                     let userStr = document.getElementById('username-input').value.trim().toLowerCase();
-                    if(!nick || !userStr) return alert('Заполните поля профиля');
+                    if(!nick || !userStr) return alert('Установите параметры профиля');
                     if(!userStr.startsWith('@')) userStr = '@' + userStr;
-                    if(snap.exists()) return alert('Данный узел связи уже занят');
+                    if(snap.exists()) return alert('Данный узел связи уже зарегистрирован');
                     
                     currentUser = { phone, username: userStr, nickname: nick, password: pass, emoji: selectedEmoji, customStatus: '', contacts: {} };
                     await db.ref('users/' + phone).set(currentUser);
@@ -346,7 +347,7 @@
                 }
                 localStorage.setItem('fw_cs2_session', JSON.stringify(currentUser));
                 startApp();
-            } catch(e) { alert('Критический сбой сети'); }
+            } catch(e) { alert('Сбой подключения к центральной матрице'); }
         }
 
         function logout() { localStorage.removeItem('fw_cs2_session'); location.reload(); }
@@ -375,7 +376,7 @@
                 const container = document.getElementById('chats-list');
                 container.innerHTML = '';
                 
-                // Рендерим фиксированный чат "Заметки"
+                // Фиксированный защищенный узел личных заметок
                 renderChatItem(`notes_${currentUser.phone}`, { name: '📁 Мои Заметки', type: 'notes', emoji: '📁' }, 0);
                 
                 if(!snap.exists()) return;
@@ -397,19 +398,20 @@
         }
 
         function renderChatItem(chatId, chat, unreadCount) {
-            let title = chat.name, avatar = chat.emoji, statusText = 'Тактический канал', isOnline = false;
+            let title = chat.name, avatar = chat.emoji, statusText = 'Тактический сектор связи', isOnline = false;
             
-            if (chat.type === 'notes') statusText = 'Личное хранилище (До 1 ГБ)';
+            if (chat.type === 'notes') statusText = 'Личное хранилище (Файлы до 1 ГБ)';
             if (chat.type === 'direct') {
                 let fPhone = chat.participants.find(p => p !== currentUser.phone);
                 if (usersCache[fPhone]) {
                     title = currentUser.contacts?.[fPhone] || usersCache[fPhone].nickname;
                     avatar = usersCache[fPhone].emoji;
                     isOnline = usersCache[fPhone].online || false;
-                    let cStatus = usersCache[fPhone].customStatus ? ` [${usersCache[fPhone].customStatus}]` : '';
-                    statusText = isOnline ? 'Защищенный канал (В сети)' : 'Резервный канал (Оффлайн)';
-                    if(usersCache[fPhone].customStatus) statusText += ` | ${usersCache[fPhone].customStatus}`;
+                    statusText = usersCache[fPhone].username || '@unknown';
+                    if(usersCache[fPhone].customStatus) statusText += ` [${usersCache[fPhone].customStatus}]`;
                 }
+            } else if (chat.type === 'group') {
+                statusText = `Группа: ${chat.participants.length} операндов`;
             }
 
             const div = document.createElement('div');
@@ -441,7 +443,15 @@
             currentChatId = chatId;
             document.getElementById('current-chat-name').innerText = title;
             document.getElementById('current-chat-avatar').innerText = avatar;
-            document.getElementById('current-chat-info').innerText = type === 'notes' ? 'ХРАНИЛИЩЕ 1 ГБ' : (type === 'group' ? 'ГРУППОВОЙ ТАКТИЧЕСКИЙ ЧАТ' : 'ПРЯМОЙ КАНАЛ СВЯЗИ');
+            
+            let infoText = type === 'notes' ? 'ЛИЧНОЕ ХРАНИЛИЩЕ 1 ГБ' : 'ТАКТИЧЕСКИЙ КАНАЛ СВЯЗИ';
+            if (type === 'direct') {
+                let fPhone = chatId.split('_').find(p => p !== currentUser.phone);
+                if (usersCache[fPhone]) infoText = `ПРЯМОЙ УЗЕЛ | ${usersCache[fPhone].username}`;
+            } else if (type === 'group') {
+                infoText = 'ОБЩАЯ ТАКТИЧЕСКАЯ ГРУППА';
+            }
+            document.getElementById('current-chat-info').innerText = infoText;
             
             let actHeader = document.getElementById('chat-header-actions');
             actHeader.innerHTML = type === 'direct' ? `<button onclick="renameFriendDialog()" class="text-gray-400 p-2 text-xs"><i class="fas fa-pen"></i></button>` : '';
@@ -455,7 +465,6 @@
             db.ref(messagesListener).on('child_added', snap => {
                 let msg = snap.val();
                 displayMessage(snap.key, msg);
-                // Помечаем как прочитанное (View)
                 if (msg.sender !== currentUser.phone && (!msg.views || !msg.views[currentUser.phone])) {
                     db.ref(`${messagesListener}/${snap.key}/views/${currentUser.phone}`).set(true);
                 }
@@ -464,7 +473,6 @@
             db.ref(messagesListener).on('child_changed', snap => {
                 let el = document.getElementById(`msg-${snap.key}`);
                 if (el) {
-                    // Перерисовываем полностью пузырь для точечного обновления лайков/просмотров
                     let parent = el.parentNode;
                     let tempDiv = document.createElement('div');
                     tempDiv.id = `msg-${snap.key}`;
@@ -482,7 +490,7 @@
             if(messagesListener) db.ref(messagesListener).off();
         }
 
-        // РЕНДЕРИНГ СООБЩЕНИЙ С ОБНОВЛЕННЫМ ФУНКЦИОНАЛОМ
+        // СБОРКА И ОТОБРАЖЕНИЕ СООБЩЕНИЙ С ДИНАМИЧЕСКИМ @USERNAME
         function displayMessage(msgId, msg) {
             const div = document.createElement('div');
             div.id = `msg-${msgId}`;
@@ -496,76 +504,70 @@
 
         function buildMessageInner(msgId, msg, containerEl) {
             const isMine = msg.sender === currentUser.phone;
-            const senderData = usersCache[msg.sender] || { nickname: 'Узел ' + msg.sender.slice(-4), emoji: '👤', customStatus: '' };
+            const senderData = usersCache[msg.sender] || { nickname: 'Узел ' + msg.sender.slice(-4), username: '@unknown', emoji: '👤', customStatus: '' };
             
-            // Расчет Просмотров и Лайков
             const viewsCount = msg.views ? Object.keys(msg.views).length : 0;
             const likesCount = msg.likes ? Object.keys(msg.likes).length : 0;
             const hasMyLike = msg.likes && msg.likes[currentUser.phone];
 
-            // Проверка на ОДИНОЧНЫЙ ЭМОДЗИ (Вайбер стиль)
+            // Вайбер-эффект для одного эмодзи
             const emojiRegex = /^(\u00a9|\u00ae|[\u2000-\u3300]|\ud83c[\ud000-\udfff]|\ud83d[\ud000-\udfff]|\ud83e[\ud000-\udfff])$/u;
             const isSingleEmoji = msg.type === 'text' && emojiRegex.test(msg.text.trim());
 
             let contentHTML = '';
             
-            // Если есть ответ на сообщение
             if(msg.replyTo && msg.replyToText) {
                 contentHTML += `
-                    <div class="bg-black/30 border-l-2 border-orange-500 p-1.5 rounded mb-2 text-[11px] text-gray-400 truncate">
+                    <div class="bg-black/40 border-l-2 border-orange-500 p-1.5 rounded mb-2 text-[11px] text-gray-400 truncate">
                         <i class="fas fa-reply mr-1"></i> ${msg.replyToText}
                     </div>
                 `;
             }
 
-            // Если сообщение переслано
             if(msg.forwardedFrom) {
                 contentHTML += `
-                    <div class="text-[10px] text-orange-400 font-mono uppercase tracking-tight mb-1">
+                    <div class="text-[9px] text-orange-400 font-mono uppercase tracking-wider mb-1">
                         <i class="fas fa-share mr-1"></i> Переслано от: ${msg.forwardedFrom}
                     </div>
                 `;
             }
 
-            // Рендеринг контента по типу
             if (msg.type === 'image') {
                 contentHTML += `<img src="${msg.text}" class="rounded-lg max-w-full h-auto object-cover max-h-60" onclick="window.open('${msg.text}')">`;
             } else if (msg.type === 'audio') {
                 contentHTML += `
-                    <div class="flex items-center gap-2 p-1 bg-black/20 rounded-lg">
-                        <button onclick="playAudioMessage('${msgId}', '${msg.text}', this)" class="w-8 h-8 rounded-full bg-orange-500 text-black text-xs flex items-center justify-center flex-shrink-0"><i class="fas fa-play"></i></button>
-                        <div class="text-[11px] font-mono text-gray-300">Голосовое сообщение</div>
+                    <div class="flex items-center gap-3 p-2 bg-black/30 rounded-xl border border-white/5">
+                        <button onclick="playAudioMessage('${msgId}', '${msg.text}', this)" class="w-9 h-9 rounded-full bg-orange-500 text-black text-xs flex items-center justify-center flex-shrink-0 active:scale-90 transition-transform"><i class="fas fa-play"></i></button>
+                        <div class="text-xs font-mono text-gray-300">Аудиопоток записи</div>
                     </div>
                 `;
             } else if (msg.type === 'video') {
                 contentHTML += `<video src="${msg.text}" controls class="rounded-lg max-w-full max-h-60"></video>`;
             } else if (msg.type === 'file') {
-                contentHTML += `<a href="${msg.text}" target="_blank" class="flex items-center gap-2 text-xs font-mono text-cyan-400 underline p-1"><i class="fas fa-file-download text-base"></i> ДОКУМЕНТ</a>`;
+                contentHTML += `<a href="${msg.text}" target="_blank" class="flex items-center gap-2 text-xs font-mono text-cyan-400 underline p-1"><i class="fas fa-file-download text-base"></i> ДОКУМЕНТ СВЯЗИ</a>`;
             } else if (msg.type === 'sticker') {
                 contentHTML += `<span class="text-5xl sticker-anim">${msg.text}</span>`;
             } else {
-                // Обычный текст
                 if (isSingleEmoji) {
-                    contentHTML += `<div class="text-6xl my-1 filter drop-shadow-[0_4px_8px_rgba(0,0,0,0.5)] transform scale-110 active:scale-125 transition-transform duration-200">${msg.text}</div>`;
+                    contentHTML += `<div class="text-6xl my-1 filter drop-shadow-[0_4px_10px_rgba(0,0,0,0.6)] transform scale-105 active:scale-125 transition-transform duration-200">${msg.text}</div>`;
                 } else {
                     contentHTML += `<div class="whitespace-pre-wrap select-text">${msg.text}</div>`;
                 }
             }
 
-            // Если отредактировано
             if (msg.edited && msg.type === 'text' && !isSingleEmoji) {
-                contentHTML += `<span class="text-[9px] text-gray-500 font-mono ml-1">(ред.)</span>`;
+                contentHTML += `<span class="text-[9px] text-gray-600 font-mono ml-1">(ред.)</span>`;
             }
 
-            let badgeHTML = senderData.customStatus ? `<span class="custom-badge ml-1">${senderData.customStatus}</span>` : '';
+            let badgeHTML = senderData.customStatus ? `<span class="custom-badge ml-1.5">${senderData.customStatus}</span>` : '';
+            let userTagHTML = `<span class="text-[10px] text-gray-500 font-mono font-normal ml-1">${senderData.username}</span>`;
 
-            // Сборка пузыря
             if (isSingleEmoji || msg.type === 'sticker') {
                 containerEl.innerHTML = `
                     <div class="flex flex-col items-center max-w-[85%]" onclick="openMessageSheet('${msgId}', ${JSON.stringify(msg).replace(/"/g, '&quot;')})">
-                        ${!isMine && currentChatId !== `notes_${currentUser.phone}` ? `<div class="text-[10px] text-gray-400 font-bold mb-0.5">${senderData.nickname}${badgeHTML}</div>` : ''}
+                        ${!isMine && currentChatId !== `notes_${currentUser.phone}` ? `<div class="text-[11px] text-gray-400 font-bold mb-0.5">${senderData.nickname}${userTagHTML}${badgeHTML}</div>` : ''}
                         ${contentHTML}
-                        <div class="flex items-center gap-1.5 text-[9px] text-gray-500 font-mono mt-1">
+                        <div class="flex items-center gap-2 text-[9px] text-gray-500 font-mono mt-1">
                             ${likesCount > 0 ? `❤️ ${likesCount}` : ''}
                             ${viewsCount > 0 ? `👁️ ${viewsCount}` : ''}
                         </div>
@@ -574,9 +576,9 @@
             } else {
                 containerEl.innerHTML = `
                     <div class="msg-bubble ${isMine ? 'msg-mine' : 'msg-theirs'}" onclick="openMessageSheet('${msgId}', ${JSON.stringify(msg).replace(/"/g, '&quot;')})">
-                        ${!isMine && currentChatId !== `notes_${currentUser.phone}` ? `<div class="text-[11px] font-black text-orange-400 mb-1 flex items-center gap-1">${senderData.emoji} ${senderData.nickname}${badgeHTML}</div>` : ''}
+                        ${!isMine && currentChatId !== `notes_${currentUser.phone}` ? `<div class="text-[11px] font-black text-orange-400 mb-1.5 flex items-center gap-0.5">${senderData.emoji} ${senderData.nickname}${userTagHTML}${badgeHTML}</div>` : ''}
                         ${contentHTML}
-                        <div class="text-[9px] ${isMine ? 'text-orange-200/60' : 'text-gray-500'} font-mono mt-1.5 flex justify-end items-center gap-2">
+                        <div class="text-[9px] ${isMine ? 'text-orange-200/60' : 'text-gray-500'} font-mono mt-2 flex justify-end items-center gap-2">
                             <span>${new Date(msg.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             <div class="flex items-center gap-1">
                                 ${likesCount > 0 ? `<span class="${hasMyLike ? 'text-red-400':'text-gray-400'}">❤️ ${likesCount}</span>` : ''}
@@ -589,8 +591,7 @@
         }
 
         // АУДИОПЛЕЕР СИНГЛТОН
-        let currentAudio = null;
-        let currentAudioBtn = null;
+        let currentAudio = null; let currentAudioBtn = null;
         function playAudioMessage(msgId, url, btn) {
             if(currentAudio && currentAudioBtn === btn) {
                 if(currentAudio.paused) { currentAudio.play(); btn.innerHTML = '<i class="fas fa-pause"></i>'; }
@@ -606,19 +607,18 @@
             currentAudio.onended = () => { btn.innerHTML = '<i class="fas fa-play"></i>'; };
         }
 
-        // ОТПРАВКА СООБЩЕНИЙ И ВАЛИДАЦИЯ ФАЙЛОВ ПО ТВОИМ ЛИМИТАМ
+        // ВАЛИДАЦИЯ И КОНТРОЛЬ ЛИМИТОВ НА ТЕЛЕФОНЕ
         async function handleFileSelect(event) {
             const file = event.target.files[0];
             if(!file || !currentChatId) return;
             event.target.value = '';
 
-            // ПРОВЕРКА ЛИМИТОВ РАЗМЕРА ФАЙЛА
             const isNotesChat = currentChatId.startsWith('notes_');
-            const limitBytes = isNotesChat ? 1024 * 1024 * 1024 : 800 * 1024 * 1024; // 1 ГБ vs 800 МБ
+            const limitBytes = isNotesChat ? 1024 * 1024 * 1024 : 800 * 1024 * 1024; 
             
             if(file.size > limitBytes) {
-                let limitText = isNotesChat ? "1 ГБ для Заметок" : "800 МБ для обычных чатов";
-                alert(`ОТКАЗ СИСТЕМЫ: Размер файла превышает жесткий лимит в ${limitText}!`);
+                let textLimit = isNotesChat ? "1 ГБ в Моих Заметках" : "800 МБ в стандартных секторах";
+                alert(`КРИТИЧЕСКИЙ ОТКАЗ: Превышен лимит пакета данных (${textLimit})`);
                 return;
             }
 
@@ -627,7 +627,7 @@
             if (file.type.startsWith('audio/')) type = 'audio';
             if (file.type.startsWith('video/')) type = 'video';
 
-            showToast("ЗАГРУЗКА МЕДИА В СЕТЬ...");
+            showToast("МОДЕМ: ОТПРАВКА В ОБЛАКО...");
             const formData = new FormData();
             formData.append("file", file);
             formData.append("upload_preset", CLOUDINARY_PRESET);
@@ -638,8 +638,8 @@
                 hideToast();
                 if(data.secure_url) {
                     executeSendMessage(data.secure_url, type);
-                } else { alert('Ошибка конфигурации облака'); }
-            } catch(e) { hideToast(); alert('Ошибка передачи пакета данных'); }
+                } else { alert('Ошибка аутентификации хранилища'); }
+            } catch(e) { hideToast(); alert('Сбой аппаратной передачи данных'); }
         }
 
         function onInputText() {
@@ -655,8 +655,7 @@
         }
 
         function toggleStickerPanel() {
-            let p = document.getElementById('sticker-panel');
-            p.classList.toggle('hidden');
+            document.getElementById('sticker-panel').classList.toggle('hidden');
         }
 
         function sendSticker(stickerEmoji) {
@@ -690,20 +689,22 @@
 
             if (activeAction === 'reply') {
                 msgPayload.replyTo = actionMessageId;
-                msgPayload.replyToText = selectedMessageData.text || '[Медиа/Файл]';
+                msgPayload.replyToText = selectedMessageData.text || '[Медиаресурс]';
                 cancelMessageAction();
             }
 
             await db.ref(`chats/${currentChatId}/messages`).push().set(msgPayload);
         }
 
-        // УЛУЧШЕННАЯ ЗАПИСЬ ГОЛОВА
+        // ИСПРАВЛЕННЫЙ И ОПТИМИЗИРОВАННЫЙ МОДУЛЬ ЗАПИСИ ДЛЯ СМАРТФОНОВ
         async function toggleVoiceRecord() {
             let mic = document.getElementById('mic-btn');
             let timerEl = document.getElementById('voice-timer');
 
             if (isRecording) {
-                mediaRecorder.stop();
+                if(mediaRecorder && mediaRecorder.state !== 'inactive') {
+                    mediaRecorder.stop();
+                }
                 isRecording = false;
                 clearInterval(voiceTimerInt);
                 mic.className = "text-gray-400 p-3 bg-white/5 border border-white/5 rounded-xl active:text-white";
@@ -712,27 +713,49 @@
             }
 
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                mediaRecorder = new MediaRecorder(stream);
+                // Прямой запрос потока без искажения контекста
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
+                
+                // Автоопределение контейнера для iOS Safari и Android Chrome
+                let detectedMime = 'audio/webm';
+                if (!MediaRecorder.isTypeSupported('audio/webm')) {
+                    if (MediaRecorder.isTypeSupported('audio/mp4')) detectedMime = 'audio/mp4';
+                    else if (MediaRecorder.isTypeSupported('audio/aac')) detectedMime = 'audio/aac';
+                    else detectedMime = ''; 
+                }
+
+                const options = detectedMime ? { mimeType: detectedMime } : {};
+                mediaRecorder = new MediaRecorder(stream, options);
                 audioChunks = [];
                 
-                mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+                mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+                
                 mediaRecorder.onstop = async () => {
-                    const blob = new Blob(audioChunks, { type: 'audio/webm' });
-                    const file = new File([blob], "voice.webm", { type: 'audio/webm' });
+                    const finalMime = mediaRecorder.mimeType || 'audio/aac';
+                    const blob = new Blob(audioChunks, { type: finalMime });
                     
-                    showToast("ОБРАБОТКА ГОЛОСОВОГО ПАКЕТА...");
+                    // Глушим все железные треки телефона, чтобы закрыть доступ к микрофону вовремя
+                    stream.getTracks().forEach(track => track.stop());
+
+                    let fileExt = finalMime.includes('mp4') ? 'mp4' : (finalMime.includes('webm') ? 'webm' : 'aac');
+                    const file = new File([blob], `voice_${Date.now()}.${fileExt}`, { type: finalMime });
+                    
+                    showToast("ОБЛАКО: ПЕРЕДАЧА АУДИОПАКЕТА...");
                     const formData = new FormData();
                     formData.append("file", file);
                     formData.append("upload_preset", CLOUDINARY_PRESET);
 
-                    const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, { method: "POST", body: formData });
-                    const data = await res.json();
+                    try {
+                        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/upload`, { method: "POST", body: formData });
+                        const data = await res.json();
+                        if(data.secure_url) {
+                            executeSendMessage(data.secure_url, 'audio');
+                        }
+                    } catch(err) { alert('Облачный шлюз отклонил аудиопакет'); }
                     hideToast();
-                    if(data.secure_url) executeSendMessage(data.secure_url, 'audio');
                 };
 
-                mediaRecorder.start();
+                mediaRecorder.start(250); // Фиксируем чанки каждые 250мс для стабильности буфера
                 isRecording = true;
                 voiceSeconds = 0;
                 document.getElementById('v-time').innerText = "0:00";
@@ -746,10 +769,12 @@
                 }, 1000);
 
                 mic.className = "text-red-500 p-3 bg-red-950/40 border border-red-500/50 rounded-xl animate-pulse";
-            } catch(e) { alert('Нет доступа к периферии аудио'); }
+            } catch(e) { 
+                alert('ДОСТУП ЗАБЛОКИРОВАН: Пожалуйста, разрешите доступ к микрофону в настройках браузера вашего телефона.'); 
+            }
         }
 
-        // КОНТЕКСТНЫЕ ОПЕРАЦИИ (BOTTOM SHEET)
+        // РАБОТА С BOTTOM SHEET
         function openMessageSheet(msgId, msgObj) {
             actionMessageId = msgId;
             selectedMessageData = msgObj;
@@ -766,7 +791,7 @@
         function closeMessageSheet() {
             let sheet = document.getElementById('msg-sheet');
             sheet.classList.remove('active');
-            setTimeout(() => sheet.classList.add('hidden'), 250);
+            setTimeout(() => sheet.classList.add('hidden'), 220);
         }
 
         async function sheetAction(action) {
@@ -781,16 +806,16 @@
                     await db.ref(`${path}/likes/${currentUser.phone}`).set(true);
                 }
             } else if (action === 'delete') {
-                if(confirm('Уничтожить сообщение во всех узлах?')) await db.ref(path).remove();
+                if(confirm('Ликвидировать сообщение на всех терминалах?')) await db.ref(path).remove();
             } else if (action === 'reply') {
                 activeAction = 'reply';
                 document.getElementById('action-bar-icon').className = "fas fa-reply";
-                document.getElementById('action-bar-text').innerText = `Ответ на: ${selectedMessageData.text || '[Медиа/Файл]'}`;
+                document.getElementById('action-bar-text').innerText = `Ответ для: ${selectedMessageData.text || '[Медиаресурс]'}`;
                 document.getElementById('action-bar').classList.remove('hidden');
             } else if (action === 'edit') {
                 activeAction = 'edit';
                 document.getElementById('action-bar-icon').className = "fas fa-pen";
-                document.getElementById('action-bar-text').innerText = `Редактирование...`;
+                document.getElementById('action-bar-text').innerText = `Корректировка данных...`;
                 document.getElementById('action-bar').classList.remove('hidden');
                 let input = document.getElementById('message-input');
                 input.value = selectedMessageData.text;
@@ -803,9 +828,7 @@
         }
 
         function cancelMessageAction() {
-            activeAction = null;
-            actionMessageId = null;
-            selectedMessageData = null;
+            activeAction = null; actionMessageId = null; selectedMessageData = null;
             document.getElementById('action-bar').classList.add('hidden');
             document.getElementById('message-input').value = '';
             onInputText();
@@ -823,16 +846,16 @@
             };
             await db.ref(`chats/${targetChatId}/messages`).push().set(payload);
             cancelForwarding();
-            openChat(targetChatId, document.getElementById('current-chat-name').innerText, '💬', 'direct'); 
+            openChat(targetChatId, usersCache[targetChatId.split('_').find(p=>p!==currentUser.phone)]?.nickname || 'Группа', '💬', 'direct'); 
         }
 
-        // ДОБАВЛЕНИЕ ДРУЗЕЙ И ГРУПП
+        // ИНИЦИАЛИЗАЦИЯ И СОЗДАНИЕ УЗЛОВ
         async function addFriendByUsername() {
             let uStr = document.getElementById('new-chat-username').value.trim().toLowerCase();
             if(!uStr.startsWith('@')) uStr = '@' + uStr;
             
             const snap = await db.ref('usernames/' + uStr.replace('@','')).once('value');
-            if(!snap.exists()) return alert('Узел связи не найден в глобальной матрице');
+            if(!snap.exists()) return alert('Заданный тактический узел отсутствует в сети');
             
             let fPhone = snap.val();
             await db.ref(`users/${currentUser.phone}/contacts/${fPhone}`).set(usersCache[fPhone].nickname);
@@ -858,15 +881,13 @@
 
         async function createGroupChat() {
             let name = document.getElementById('new-group-name').value.trim();
-            if(!name) return alert('Введите название группы');
+            if(!name) return alert('Установите имя группы');
             
             let checked = Array.from(document.querySelectorAll('#group-users-list input:checked')).map(i => i.value);
             checked.push(currentUser.phone);
 
             let newId = 'group_' + Date.now();
-            await db.ref(`chats/${newId}`).set({
-                name: name, type: 'group', emoji: '👥', participants: checked
-            });
+            await db.ref(`chats/${newId}`).set({ name: name, type: 'group', emoji: '👥', participants: checked });
             hideModal('new-group-modal');
         }
 
@@ -874,14 +895,13 @@
             let fPhone = currentChatId.split('_').find(p => p !== currentUser.phone);
             if(!fPhone) return;
             let currentName = currentUser.contacts?.[fPhone] || usersCache[fPhone].nickname;
-            let n = prompt("Изменить локальное имя узла:", currentName);
+            let n = prompt("Изменить позывной узла связи:", currentName);
             if(n) {
                 await db.ref(`users/${currentUser.phone}/contacts/${fPhone}`).set(n.trim());
                 document.getElementById('current-chat-name').innerText = n.trim();
             }
         }
 
-        // НАСТРОЙКИ СВЯЗИ
         function initSettingsModal() {
             document.getElementById('edit-custom-status').value = currentUser.customStatus || '';
             document.getElementById('edit-nick').value = currentUser.nickname || '';
@@ -894,15 +914,9 @@
             let status = document.getElementById('edit-custom-status').value.trim().toUpperCase();
             let nick = document.getElementById('edit-nick').value.trim();
             if(!nick) return alert('Никнейм обязателен');
-            
-            // Защита от слишком длинного кастомного статуса
-            if(status.length > 10) return alert('Превышен лимит длины статуса (макс. 10 символов)');
+            if(status.length > 10) return alert('Статус не должен превышать 10 символов');
 
-            await db.ref(`users/${currentUser.phone}`).update({
-                nickname: nick,
-                emoji: selectedEditEmoji,
-                customStatus: status
-            });
+            await db.ref(`users/${currentUser.phone}`).update({ nickname: nick, emoji: selectedEditEmoji, customStatus: status });
             hideModal('settings-modal');
         }
     </script>
