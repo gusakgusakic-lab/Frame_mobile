@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Framework Messenger</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        :root {
+            /* Базовые цвета. Изменяются через JS ползунком */
+            --theme-color: #f97316; /* Оранжевый (Tailwind orange-500) */
+            --theme-hover: #ea580c; /* orange-600 */
+            --theme-bg-dark: #000000;
+            --theme-bg-panel: #171717; /* neutral-900 */
+            --theme-bg-chat: #0a0a0a;  /* neutral-950 */
+            --theme-text: #ffffff;
+            --user-ring: #22c55e;      /* Цвет кольца онлайна (green-500 по умолчанию) */
+        }
+
+        body {
+            background-color: var(--theme-bg-dark);
+            color: var(--theme-text);
+            font-family: system-ui, -apple-system, sans-serif;
+            overflow: hidden; /* Запрет скролла всей страницы */
+            touch-action: manipulation; /* Улучшение тапов на мобильных */
+        }
+
+        /* Утилиты для темы */
+        .bg-theme { background-color: var(--theme-color); }
+        .bg-theme-hover:hover { background-color: var(--theme-hover); }
+        .text-theme { color: var(--theme-color); }
+        .border-theme { border-color: var(--theme-color); }
+
+        /* Скроллбары */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--theme-bg-panel); }
+        ::-webkit-scrollbar-thumb { background: var(--theme-color); border-radius: 3px; }
+
+        /* Анимации */
+        .fade-in { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        /* Мобильный фикс для скрытия элементов */
+        .mobile-hidden { display: none !important; }
+        @media (min-width: 768px) {
+            .mobile-hidden { display: flex !important; }
+            .desktop-hidden { display: none !important; }
+        }
+        
+        /* Защита от выделения при долгом тапе */
+        .no-select {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="h-screen w-screen flex flex-col">
+
+    <div id="auth-screen" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#000000] p-6 fade-in">
+        <div class="w-full max-w-sm flex flex-col items-center bg-[#171717] p-8 rounded-3xl border border-neutral-800 shadow-2xl">
+            
+            <div class="w-24 h-24 rounded-2xl bg-theme flex items-center justify-center mb-6 shadow-[0_0_20px_var(--theme-color)] transition-all duration-300" id="auth-logo">
+                <svg class="w-14 h-14 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                </svg>
+            </div>
+            
+            <h1 class="text-3xl font-bold text-white mb-1">Framework</h1>
+            <p class="text-theme text-sm font-semibold tracking-widest uppercase mb-8">Messenger</p>
+
+            <div id="auth-buttons-group" class="w-full space-y-4">
+                <button onclick="showAuthForm('login')" class="w-full py-3.5 bg-theme text-black font-bold text-lg rounded-xl bg-theme-hover transition-all shadow-lg active:scale-95">
+                    Войти
+                </button>
+                <button onclick="showAuthForm('register')" class="w-full py-3.5 bg-transparent border-2 border-theme text-theme font-bold text-lg rounded-xl hover:bg-theme/10 transition-all active:scale-95">
+                    Регистрация
+                </button>
+            </div>
+
+            <div id="auth-form" class="w-full space-y-4 hidden fade-in">
+                <h3 id="form-title" class="text-white text-xl font-bold mb-4 text-center">Вход</h3>
+                
+                <div id="nickname-field-container" class="hidden">
+                    <input type="text" id="auth-nickname" placeholder="Ваш Никнейм (Например: Гусь)" 
+                           class="w-full p-3.5 rounded-xl bg-black text-white border border-neutral-700 focus:outline-none focus:border-theme transition-colors placeholder-neutral-600">
+                </div>
+
+                <div id="username-field-container" class="hidden">
+                    <input type="text" id="auth-username" placeholder="Юзернейм (@admin)" 
+                           class="w-full p-3.5 rounded-xl bg-black text-white border border-neutral-700 focus:outline-none focus:border-theme transition-colors placeholder-neutral-600">
+                </div>
+
+                <div>
+                    <input type="tel" id="auth-phone" placeholder="Номер телефона (+7...)" 
+                           class="w-full p-3.5 rounded-xl bg-black text-white border border-neutral-700 focus:outline-none focus:border-theme transition-colors placeholder-neutral-600">
+                </div>
+
+                <div>
+                    <input type="password" id="auth-password" placeholder="Пароль" 
+                           class="w-full p-3.5 rounded-xl bg-black text-white border border-neutral-700 focus:outline-none focus:border-theme transition-colors placeholder-neutral-600">
+                </div>
+
+                <div class="flex space-x-3 pt-4">
+                    <button onclick="submitAuth()" class="flex-1 py-3.5 bg-theme text-black font-bold rounded-xl bg-theme-hover transition-all active:scale-95">
+                        Готово
+                    </button>
+                    <button onclick="hideAuthForm()" class="px-4 py-3.5 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition-all active:scale-95">
+                        ✕
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="app-screen" class="hidden flex-col h-full w-full bg-[var(--theme-bg-dark)] fade-in relative">
+        
+        <!-- Верхняя навигационная панель -->
+        <header class="h-16 bg-[var(--theme-bg-panel)] border-b border-neutral-800 px-4 flex items-center justify-between z-10 shrink-0">
+            <div class="flex items-center space-x-3">
+                <div class="w-10 h-10 rounded-xl bg-theme flex items-center justify-center">
+                    <svg class="w-6 h-6 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="3 11 22 2 13 21 11 13 3 11"></polygon>
+                    </svg>
+                </div>
+                <span class="text-xl font-bold text-white hidden sm:block">Framework</span>
+            </div>
+
+            <div class="flex items-center space-x-2 sm:space-x-4">
+                <button onclick="openFriendsModal()" class="p-2 sm:px-4 sm:py-2 bg-neutral-800 text-white text-sm font-bold rounded-lg hover:bg-neutral-700 transition flex items-center space-x-2">
+                    <span>➕</span><span class="hidden sm:inline">Добавить</span>
+                </button>
+                
+                <button onclick="openMyProfileModal()" class="flex items-center space-x-2 bg-neutral-800/50 p-1.5 sm:px-3 sm:py-1.5 rounded-xl border border-neutral-700 hover:bg-neutral-700 transition active:scale-95">
+                    <div id="my-avatar-wrapper" class="rounded-full flex items-center justify-center w-8 h-8 transition-colors duration-300" style="border: 2px solid var(--user-ring);">
+                        <span id="my-avatar" class="text-lg">🦆</span>
+                    </div>
+                    <span id="my-nickname" class="text-white font-bold text-sm hidden sm:block max-w-[100px] truncate">User</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- Рабочая область (Список чатов + Окно чата) -->
+        <div class="flex-1 flex overflow-hidden relative">
+            
+            <!-- Левая колонка: СПИСОК ЧАТОВ -->
+            <aside id="chat-sidebar" class="w-full md:w-[320px] lg:w-[380px] bg-[var(--theme-bg-panel)] border-r border-neutral-800 flex flex-col h-full shrink-0 transition-all duration-300">
+                <div class="p-3">
+                    <div class="relative">
+                        <input type="text" placeholder="Поиск чатов..." class="w-full bg-black text-white px-4 py-2.5 rounded-xl border border-neutral-800 focus:outline-none focus:border-theme text-sm">
+                    </div>
+                </div>
+                <div id="chats-list" class="flex-1 overflow-y-auto p-2 space-y-1">
+                    <!-- Заполняется динамически -->
+                </div>
+            </aside>
+
+            <!-- Правая колонка: ОКНО ЧАТА -->
+            <main id="chat-window" class="hidden md:flex flex-1 bg-[var(--theme-bg-chat)] flex-col h-full relative">
+                
+                <div id="no-chat-selected" class="absolute inset-0 flex flex-col items-center justify-center bg-[var(--theme-bg-chat)] z-10">
+                    <div class="w-20 h-20 bg-neutral-900 rounded-full flex items-center justify-center mb-4 border border-neutral-800">
+                        <span class="text-4xl text-theme">💬</span>
+                    </div>
+                    <p class="text-neutral-400 font-bold text-lg">Выберите чат для общения</p>
+                </div>
+
+                <!-- Шапка чата -->
+                <div id="chat-header" class="h-16 bg-[var(--theme-bg-panel)] border-b border-neutral-800 px-4 flex items-center justify-between shrink-0">
+                    <div class="flex items-center">
+                        <button onclick="backToChats()" class="md:hidden mr-3 p-2 text-white hover:bg-neutral-800 rounded-lg">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                        </button>
+                        <div class="flex items-center space-x-3 cursor-pointer" onclick="toggleEditContactModal()">
+                            <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-xl border border-neutral-700" id="active-chat-avatar">👤</div>
+                            <div>
+                                <h3 id="active-chat-name" class="font-bold text-white text-base leading-tight">Имя контакта</h3>
+                                <p id="active-chat-phone" class="text-xs text-neutral-500">телефон</p>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="toggleEditContactModal()" class="p-2 text-neutral-400 hover:text-white transition">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"></path></svg>
+                    </button>
+                </div>
+
+                <!-- Лента сообщений -->
+                <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col scroll-smooth">
+                    <!-- Сообщения -->
+                </div>
+
+                <!-- Индикатор редактирования/ответа -->
+                <div id="action-banner" class="hidden px-4 py-2 bg-neutral-800 border-t border-neutral-700 flex justify-between items-center">
+                    <div class="flex flex-col">
+                        <span id="action-banner-title" class="text-theme text-xs font-bold uppercase">Редактирование</span>
+                        <span id="action-banner-text" class="text-neutral-300 text-sm truncate max-w-md">Текст...</span>
+                    </div>
+                    <button onclick="cancelMessageAction()" class="text-neutral-400 hover:text-white p-1">✕</button>
+                </div>
+
+                <!-- Панель ввода -->
+                <div class="p-3 sm:p-4 bg-[var(--theme-bg-panel)] shrink-0 border-t border-neutral-800 relative z-20">
+                    <div class="flex items-end space-x-2 max-w-4xl mx-auto">
+                        
+                        <div class="flex flex-col space-y-2 pb-1.5 shrink-0">
+                            <!-- Файл -->
+                            <label class="p-2 bg-neutral-800 rounded-full cursor-pointer hover:bg-neutral-700 transition text-neutral-400 hover:text-theme">
+                                <input type="file" id="chat-file-upload" class="hidden" onchange="sendFileMessage(event, 'file')">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
+                            </label>
+                            <!-- Фото -->
+                            <label class="p-2 bg-neutral-800 rounded-full cursor-pointer hover:bg-neutral-700 transition text-neutral-400 hover:text-theme">
+                                <input type="file" id="chat-image-upload" accept="image/*" class="hidden" onchange="sendFileMessage(event, 'image')">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            </label>
+                        </div>
+
+                        <div class="flex-1 bg-black rounded-2xl border border-neutral-700 focus-within:border-theme transition-colors flex items-center relative shadow-inner">
+                            <textarea id="message-input" rows="1" maxlength="1000"
+                                      placeholder="Сообщение..." 
+                                      class="w-full bg-transparent text-white placeholder-neutral-600 resize-none outline-none text-sm p-3.5 pr-12 max-h-32"
+                                      oninput="autoResizeInput()"></textarea>
+                            
+                            <button id="send-btn" onclick="submitMessage()" 
+                                    class="absolute right-2 bottom-2 w-9 h-9 bg-theme hover:bg-theme-hover text-black rounded-full flex items-center justify-center transition-all shadow-md active:scale-95 disabled:opacity-50">
+                                <svg id="send-icon" class="w-5 h-5 ml-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    
+    <!-- Добавление друга -->
+    <div id="friend-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden p-4 fade-in backdrop-blur-sm">
+        <div class="bg-[var(--theme-bg-panel)] w-full max-w-sm rounded-3xl border border-neutral-700 p-6 shadow-2xl">
+            <h3 class="text-white text-xl font-bold mb-4">Добавить контакт</h3>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Телефон / Юзернейм</label>
+                    <input type="text" id="friend-phone" placeholder="+7... или @user" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:outline-none focus:border-theme">
+                </div>
+                <div>
+                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Имя (Локально)</label>
+                    <input type="text" id="friend-name" placeholder="Как записать?" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:outline-none focus:border-theme">
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pt-6">
+                <button onclick="submitAddFriend()" class="flex-1 py-3 bg-theme text-black font-bold rounded-xl bg-theme-hover transition">Добавить</button>
+                <button onclick="closeModal('friend-modal')" class="px-4 py-3 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition">Отмена</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Редактирование контакта / Удаление -->
+    <div id="edit-contact-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden p-4 fade-in backdrop-blur-sm">
+        <div class="bg-[var(--theme-bg-panel)] w-full max-w-sm rounded-3xl border border-neutral-700 p-6 shadow-2xl">
+            <h3 class="text-white text-xl font-bold mb-4">Настройки контакта</h3>
+            
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Имя</label>
+                    <input type="text" id="edit-contact-name-input" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:outline-none focus:border-theme">
+                </div>
+            </div>
+
+            <div class="flex flex-col space-y-3">
+                <button onclick="saveContactChanges()" class="w-full py-3 bg-theme text-black font-bold rounded-xl bg-theme-hover transition">Сохранить</button>
+                <button onclick="deleteCurrentContact()" class="w-full py-3 bg-red-950/50 text-red-500 border border-red-900/50 font-bold rounded-xl hover:bg-red-900/40 transition">Удалить контакт</button>
+                <button onclick="closeModal('edit-contact-modal')" class="w-full py-3 bg-neutral-800 text-white rounded-xl hover:bg-neutral-700 transition">Закрыть</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Настройки профиля (Тема, Пароль, Ник) -->
+    <div id="my-profile-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden p-4 fade-in backdrop-blur-sm">
+        <div class="bg-[var(--theme-bg-panel)] w-full max-w-md rounded-3xl border border-neutral-700 p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-white text-xl font-bold">Настройки</h3>
+                <button onclick="closeModal('my-profile-modal')" class="text-neutral-400 hover:text-white">✕</button>
+            </div>
+
+            <!-- Аватарка -->
+            <div class="mb-6 flex flex-col items-center">
+                <div id="profile-modal-avatar-preview" class="w-20 h-20 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden border-2 border-theme cursor-pointer mb-3" onclick="document.getElementById('avatar-upload').click()">
+                    <span class="text-3xl">🦆</span>
+                </div>
+                <button onclick="document.getElementById('avatar-upload').click()" class="text-theme text-sm font-bold bg-neutral-800 px-4 py-2 rounded-xl hover:bg-neutral-700 transition active:scale-95">Загрузить фото</button>
+                <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+            </div>
+
+            <!-- Слайдер темы (Оранжевый -> Темно-Зеленый) -->
+            <div class="mb-6 bg-black p-4 rounded-xl border border-neutral-800">
+                <label class="block text-theme text-xs font-bold mb-3 uppercase tracking-wider flex justify-between">
+                    <span>Цвет темы</span>
+                    <span id="theme-value-text" class="text-neutral-400">Orange</span>
+                </label>
+                <input type="range" id="theme-slider" min="0" max="100" value="0" oninput="applyTheme(this.value)" class="w-full accent-theme cursor-pointer h-2 bg-neutral-800 rounded-lg appearance-none">
+                <div class="flex justify-between text-[10px] text-neutral-500 mt-2 font-bold uppercase">
+                    <span>Оранжевый</span>
+                    <span>Тёмно-зелёный</span>
+                </div>
+            </div>
+
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Никнейм</label>
+                    <input type="text" id="my-profile-name-input" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
+                </div>
+                <div>
+                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Новый Пароль</label>
+                    <input type="password" id="my-profile-password-input" placeholder="Оставьте пустым для сохранения старого" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
+                </div>
+                <div>
+                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Цвет онлайна (кольцо)</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="color" id="my-profile-ring-color" class="w-12 h-12 rounded bg-black cursor-pointer border-none">
+                        <span class="text-sm text-neutral-500">Выделитесь в чатах</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex space-x-3 pt-2 border-t border-neutral-800 mt-4">
+                <button onclick="saveMyProfileChanges()" class="flex-1 py-3 bg-theme text-black font-bold rounded-xl transition">Сохранить</button>
+                <button onclick="logout()" class="px-4 py-3 bg-neutral-800 text-red-400 border border-red-900/30 rounded-xl hover:bg-neutral-700 transition">Выйти</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модалка Пересылки -->
+    <div id="forward-modal" class="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center hidden p-4 fade-in">
+        <div class="bg-[var(--theme-bg-panel)] w-full max-w-sm rounded-3xl border border-neutral-700 p-6 flex flex-col h-[60vh]">
+            <h3 class="text-white text-xl font-bold mb-4">Переслать кому:</h3>
+            <div id="forward-chats-list" class="flex-1 overflow-y-auto space-y-2 mb-4 bg-black p-2 rounded-xl border border-neutral-800">
+                <!-- Заполняется JS -->
+            </div>
+            <button onclick="closeModal('forward-modal')" class="w-full py-3 bg-neutral-800 text-white rounded-xl">Отмена</button>
+        </div>
+    </div>
+
+    <!-- Всплывающие уведомления -->
+    <div id="toast-container" class="fixed top-5 left-1/2 -translate-x-1/2 z-[100] flex flex-col items-center space-y-2 pointer-events-none"></div>
+
+    <!-- Контекстное меню для сообщений (Долгое нажатие) -->
+    <div id="context-menu" class="hidden fixed bg-[#171717] border border-neutral-700 rounded-xl shadow-2xl z-[70] w-48 overflow-hidden flex-col transform scale-95 opacity-0 transition-all origin-top-left">
+        <button class="px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 w-full font-medium flex items-center" onclick="ctxAction('reply')"><span class="w-6">↩️</span> Ответить</button>
+        <button class="px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 w-full font-medium flex items-center border-t border-neutral-800" onclick="ctxAction('forward')"><span class="w-6">➡️</span> Переслать</button>
+        <button class="px-4 py-3 text-left text-sm text-white hover:bg-neutral-800 w-full font-medium flex items-center border-t border-neutral-800" onclick="ctxAction('edit')" id="ctx-edit-btn"><span class="w-6">✏️</span> Изменить</button>
+        <button class="px-4 py-3 text-left text-sm text-red-500 hover:bg-red-950/30 w-full font-bold flex items-center border-t border-neutral-800" onclick="ctxAction('delete')"><span class="w-6">🗑️</span> Удалить</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, set, push, onChildAdded, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // Конфигурация Firebase
+        const firebaseConfig = {
+            databaseURL: "https://framework-5a0bf-default-rtdb.europe-west1.firebasedatabase.app/"
+        };
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+        const STORAGE_KEY = 'framework_msg_v5';
+
+        // Глобальное состояние
+        let state = {
+            currentUser: null,
+            chats: {},
+            activeChat: null,
+            themeSliderValue: 0
+        };
+
+        // Состояния действий с сообщениями
+        let actionState = {
+            type: null, // 'reply', 'edit', 'forward'
+            messageId: null,
+            messageText: null
+        };
+
+        // Переменные для долгого нажатия (Контекстное меню)
+        let pressTimer = null;
+        let selectedMsgId = null;
+        let selectedMsgEl = null;
+
+        window.onload = initApp;
+
+        function initApp() {
+            const savedData = localStorage.getItem(STORAGE_KEY);
+            if (savedData) {
+                try {
+                    const parsed = JSON.parse(savedData);
+                    state.currentUser = parsed.currentUser || null;
+                    state.chats = parsed.chats || {};
+                    state.activeChat = parsed.activeChat || null;
+                    state.themeSliderValue = parsed.themeSliderValue || 0;
+                } catch(e) { console.error("Parse error", e); }
+            }
+
+            applyTheme(state.themeSliderValue);
+            document.getElementById('theme-slider').value = state.themeSliderValue;
+
+            // Экспорт функций в global window для HTML onclick
+            Object.assign(window, {
+                showAuthForm, hideAuthForm, submitAuth, logout,
+                openFriendsModal, closeModal, submitAddFriend,
+                toggleEditContactModal, saveContactChanges, deleteCurrentContact,
+                openMyProfileModal, saveMyProfileChanges, applyTheme,
+                submitMessage, sendFileMessage, selectChat, backToChats,
+                autoResizeInput, cancelMessageAction, ctxAction,
+                handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadFileBase64,
+                handleAvatarUpload
+            });
+
+            // Закрытие контекстного меню при клике вне
+            document.addEventListener('click', (e) => {
+                if(!e.target.closest('#context-menu') && !e.target.closest('.message-bubble')) {
+                    hideContextMenu();
+                }
+            });
+
+            if (state.currentUser) {
+                showMainScreen();
+            } else {
+                showAuthScreen();
+            }
+        }
+
+        function saveState() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+        }
+
+        // --- ТЕМА ---
+        function applyTheme(val) {
+            state.themeSliderValue = val;
+            // Оранжевый: HSL ~25. Зеленый: HSL ~140.
+            const hue = 25 + ((140 - 25) * (val / 100));
+            // Saturation 90%, Lightness 50%
+            document.documentElement.style.setProperty('--theme-color', `hsl(${hue}, 90%, 50%)`);
+            document.documentElement.style.setProperty('--theme-hover', `hsl(${hue}, 90%, 45%)`);
+            
+            const textEl = document.getElementById('theme-value-text');
+            if(textEl) {
+                if(val < 30) textEl.innerText = 'Оранжевый';
+                else if (val < 70) textEl.innerText = 'Оливковый';
+                else textEl.innerText = 'Тёмно-зелёный';
+            }
+            saveState();
+        }
+
+        // --- УВЕДОМЛЕНИЯ ---
+        function showToast(text, type = "success") {
+            const container = document.getElementById('toast-container');
+            const el = document.createElement('div');
+            const bgColor = type === 'error' ? 'bg-red-600' : 'bg-theme';
+            const textColor = type === 'error' ? 'text-white' : 'text-black';
+            el.className = `${bgColor} ${textColor} px-5 py-2.5 rounded-full font-bold text-sm shadow-xl fade-in transition-opacity duration-300 transform translate-y-0`;
+            el.innerText = text;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateY(-10px)';
+                setTimeout(() => el.remove(), 300);
+            }, 3000);
+        }
+
+        // --- АВТОРИЗАЦИЯ ---
+        let currentAuthMode = 'login';
+
+        function showAuthScreen() {
+            document.getElementById('auth-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('hidden');
+            hideAuthForm();
+        }
+
+        function showAuthForm(mode) {
+            currentAuthMode = mode;
+            document.getElementById('auth-buttons-group').classList.add('hidden');
+            document.getElementById('auth-form').classList.remove('hidden');
+            
+            const nick = document.getElementById('nickname-field-container');
+            const user = document.getElementById('username-field-container');
+            if (mode === 'register') {
+                document.getElementById('form-title').innerText = 'Регистрация';
+                nick.classList.remove('hidden');
+                user.classList.remove('hidden');
+            } else {
+                document.getElementById('form-title').innerText = 'Вход';
+                nick.classList.add('hidden');
+                user.classList.add('hidden');
+            }
+        }
+
+        function hideAuthForm() {
+            document.getElementById('auth-buttons-group').classList.remove('hidden');
+            document.getElementById('auth-form').classList.add('hidden');
+        }
+
+        function submitAuth() {
+            const phone = document.getElementById('auth-phone').value.trim().replace(/[^0-9+]/g, '');
+            const pass = document.getElementById('auth-password').value.trim();
+            const nick = document.getElementById('auth-nickname').value.trim();
+            
+            if (!phone || !pass) return showToast("Введите телефон и пароль", "error");
+
+            if (currentAuthMode === 'register') {
+                if (!nick) return showToast("Введите никнейм", "error");
+                state.currentUser = { phone, nickname: nick, password: pass, ringColor: "#22c55e" };
+                set(ref(db, 'users/' + phone), state.currentUser);
+                showToast("Регистрация успешна!");
+                saveState();
+                showMainScreen();
+            } else {
+                get(ref(db, 'users/' + phone)).then((snap) => {
+                    if (snap.exists() && snap.val().password === pass) {
+                        state.currentUser = snap.val();
+                        
+                        // Загрузка контактов из Firebase
+                        get(ref(db, 'users/' + phone + '/contacts')).then((contactsSnap) => {
+                            if (contactsSnap.exists()) {
+                                const contacts = contactsSnap.val();
+                                Object.keys(contacts).forEach(cPhone => {
+                                    if (!state.chats[cPhone]) {
+                                        state.chats[cPhone] = { name: contacts[cPhone].name, messages: [] };
+                                    } else {
+                                        state.chats[cPhone].name = contacts[cPhone].name;
+                                    }
+                                });
+                            }
+                            showToast("Вход выполнен");
+                            saveState();
+                            showMainScreen();
+                        });
+                    } else {
+                        showToast("Неверный логин или пароль", "error");
+                    }
+                }).catch(()=> showToast("Ошибка сети", "error"));
+            }
+        }
+
+        function logout() {
+            state.currentUser = null;
+            state.activeChat = null;
+            saveState();
+            closeModal('my-profile-modal');
+            showAuthScreen();
+        }
+
+        // --- ГЛАВНЫЙ ЭКРАН И ЧАТЫ ---
+        function showMainScreen() {
+            document.getElementById('auth-screen').classList.add('hidden');
+            document.getElementById('app-screen').classList.remove('hidden');
+            document.getElementById('app-screen').classList.add('flex');
+            
+            updateProfileUI();
+            renderChatsList();
+            
+            // Если мы на мобильном и есть активный чат, сразу открываем его
+            if(window.innerWidth < 768 && state.activeChat) {
+                selectChat(state.activeChat);
+            } else {
+                renderActiveChat();
+            }
+
+            listenToMessages();
+        }
+
+        function updateProfileUI() {
+            if(!state.currentUser) return;
+            document.getElementById('my-nickname').innerText = state.currentUser.nickname || 'User';
+            document.documentElement.style.setProperty('--user-ring', state.currentUser.ringColor || '#22c55e');
+            
+            const avatarWrapper = document.getElementById('my-avatar-wrapper');
+            if (state.currentUser.avatar && state.currentUser.avatar.startsWith('data:image')) {
+                avatarWrapper.innerHTML = `<img src="${state.currentUser.avatar}" class="w-full h-full object-cover rounded-full">`;
+            } else {
+                avatarWrapper.innerHTML = `<span id="my-avatar" class="text-lg">🦆</span>`;
+            }
+        }
+
+        // --- МОБИЛЬНАЯ АДАПТИВНОСТЬ МЕНЮ ---
+        function selectChat(phone) {
+            state.activeChat = phone;
+            saveState();
+            renderChatsList();
+            renderActiveChat();
+            
+            // Мобильная логика: скрываем сайдбар, показываем окно чата
+            const sidebar = document.getElementById('chat-sidebar');
+            const chatWin = document.getElementById('chat-window');
+            if(window.innerWidth < 768) {
+                sidebar.classList.add('hidden');
+                chatWin.classList.remove('hidden');
+                chatWin.classList.add('flex');
+            }
+        }
+
+        function backToChats() {
+            // Возврат к списку чатов на мобилках
+            const sidebar = document.getElementById('chat-sidebar');
+            const chatWin = document.getElementById('chat-window');
+            
+            sidebar.classList.remove('hidden');
+            sidebar.classList.add('flex');
+            chatWin.classList.add('hidden');
+            chatWin.classList.remove('flex');
+        }
+
+        function renderChatsList() {
+            const list = document.getElementById('chats-list');
+            list.innerHTML = '';
+            
+            const keys = Object.keys(state.chats);
+            if(keys.length === 0) {
+                list.innerHTML = `<div class="text-neutral-500 text-sm p-4 text-center">Нет чатов. Добавьте контакт!</div>`;
+                return;
+            }
+
+            keys.forEach(phone => {
+                const chat = state.chats[phone];
+                const msgs = chat.messages || [];
+                const last = msgs[msgs.length - 1];
+                let lastTxt = "Нет сообщений";
+                if(last) {
+                    if(last.isDeleted) lastTxt = "🚫 Сообщение удалено";
+                    else if(last.type === 'image') lastTxt = "📷 Фотография";
+                    else if(last.type === 'file') lastTxt = "📄 Файл";
+                    else lastTxt = last.text || "";
+                }
+
+                const isActive = state.activeChat === phone;
+                const bgClass = isActive ? 'bg-theme text-black shadow-lg' : 'hover:bg-neutral-800 text-white';
+                const textMuted = isActive ? 'text-black/70' : 'text-neutral-500';
+
+                const el = document.createElement('div');
+                el.className = `p-3 rounded-2xl cursor-pointer transition-all flex items-center space-x-3 mb-1 ${bgClass}`;
+                el.onclick = () => selectChat(phone);
+                el.innerHTML = `
+                    <div class="w-12 h-12 rounded-full ${isActive?'bg-black/20':'bg-neutral-800'} flex items-center justify-center text-xl shrink-0">👤</div>
+                    <div class="overflow-hidden flex-1">
+                        <h4 class="font-bold text-sm truncate">${chat.name}</h4>
+                        <p class="text-xs truncate ${textMuted}">${lastTxt}</p>
+                    </div>
+                `;
+                list.appendChild(el);
+            });
+        }
+
+        // --- КОНТЕКСТНОЕ МЕНЮ (LONG PRESS 3 СЕК) ---
+        function handleMsgPointerDown(e, msgId) {
+            // Если левый клик или касание
+            if(e.type === 'mousedown' && e.button !== 0) return; 
+            
+            selectedMsgId = msgId;
+            selectedMsgEl = e.currentTarget;
+            
+            pressTimer = setTimeout(() => {
+                showContextMenu(e, msgId);
+                pressTimer = null;
+            }, 3000); // По ТЗ: задержка 3 секунды
+        }
+
+        function handleMsgPointerUp() {
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        }
+
+        function handleMsgPointerMove() {
+            // Если палец сдвинулся, отменяем таймер (свайп а не удержание)
+            if (pressTimer) {
+                clearTimeout(pressTimer);
+                pressTimer = null;
+            }
+        }
+
+        function showContextMenu(e, msgId) {
+            e.preventDefault();
+            const menu = document.getElementById('context-menu');
+            
+            // Находим сообщение для проверки (можно ли редактировать)
+            const chat = state.chats[state.activeChat];
+            const msg = chat.messages.find(m => m.id === msgId);
+            
+            if(!msg || msg.isDeleted) return;
+
+            // Показываем кнопку "Изменить" только для своих текстовых сообщений
+            const editBtn = document.getElementById('ctx-edit-btn');
+            if(msg.sender === 'me' && msg.type === 'text') {
+                editBtn.classList.remove('hidden');
+                editBtn.classList.add('flex');
+            } else {
+                editBtn.classList.add('hidden');
+                editBtn.classList.remove('flex');
+            }
+
+            menu.classList.remove('hidden');
+            // Маленькая задержка для анимации scale/opacity
+            setTimeout(() => {
+                menu.classList.remove('scale-95', 'opacity-0');
+                menu.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            // Позиционирование (чтобы не ушло за экран)
+            let x, y;
+            if (e.touches && e.touches.length > 0) {
+                x = e.touches[0].clientX;
+                y = e.touches[0].clientY;
+            } else {
+                x = e.clientX;
+                y = e.clientY;
+            }
+
+            const menuWidth = 192; // w-48 = 12rem = 192px
+            const menuHeight = menu.offsetHeight || 200;
+            
+            if (x + menuWidth > window.innerWidth) x = window.innerWidth - menuWidth - 10;
+            if (y + menuHeight > window.innerHeight) y = window.innerHeight - menuHeight - 10;
+
+            menu.style.left = `${x}px`;
+            menu.style.top = `${y}px`;
+        }
+
+        function hideContextMenu() {
+            const menu = document.getElementById('context-menu');
+            menu.classList.remove('scale-100', 'opacity-100');
+            menu.classList.add('scale-95', 'opacity-0');
+            setTimeout(() => menu.classList.add('hidden'), 200);
+        }
+
+        // --- ДЕЙСТВИЯ С СООБЩЕНИЯМИ ---
+        function ctxAction(type) {
+            hideContextMenu();
+            if(!selectedMsgId || !state.activeChat) return;
+
+            const chat = state.chats[state.activeChat];
+            const msg = chat.messages.find(m => m.id === selectedMsgId);
+            if(!msg) return;
+
+            if(type === 'delete') {
+                // Мягкое удаление (ставим флаг)
+                msg.isDeleted = true;
+                msg.text = "";
+                msg.dataUrl = "";
+                
+                // Удаляем из Firebase у себя и у собеседника
+                const myPhone = state.currentUser.phone;
+                const theirPhone = state.activeChat;
+                // В реальном приложении нужно искать точный ключ, здесь упрощенно для демо (так как структура push)
+                showToast("Сообщение удалено");
+                saveState();
+                renderActiveChat();
+                renderChatsList();
+            } 
+            else if (type === 'edit') {
+                actionState = { type: 'edit', messageId: msg.id, messageText: msg.text };
+                document.getElementById('action-banner').classList.remove('hidden');
+                document.getElementById('action-banner-title').innerText = "Редактирование";
+                document.getElementById('action-banner-text').innerText = msg.text;
+                
+                const input = document.getElementById('message-input');
+                input.value = msg.text;
+                input.focus();
+                autoResizeInput();
+            }
+            else if (type === 'reply') {
+                actionState = { type: 'reply', messageId: msg.id, messageText: msg.text || (msg.type === 'image' ? 'Фото' : 'Файл') };
+                document.getElementById('action-banner').classList.remove('hidden');
+                document.getElementById('action-banner-title').innerText = "Ответ";
+                document.getElementById('action-banner-text').innerText = actionState.messageText;
+                document.getElementById('message-input').focus();
+            }
+            else if (type === 'forward') {
+                // Открываем модалку выбора чата
+                actionState = { type: 'forward', messageId: msg.id, messageData: msg };
+                openForwardModal();
+            }
+        }
+
+        function cancelMessageAction() {
+            actionState = { type: null, messageId: null, messageText: null };
+            document.getElementById('action-banner').classList.add('hidden');
+            const input = document.getElementById('message-input');
+            input.value = "";
+            autoResizeInput();
+        }
+
+        function openForwardModal() {
+            const modal = document.getElementById('forward-modal');
+            const list = document.getElementById('forward-chats-list');
+            list.innerHTML = '';
+            
+            Object.keys(state.chats).forEach(phone => {
+                const btn = document.createElement('button');
+                btn.className = "w-full text-left p-3 hover:bg-neutral-800 text-white rounded-lg border-b border-neutral-800 last:border-0";
+                btn.innerText = state.chats[phone].name;
+                btn.onclick = () => {
+                    executeForward(phone);
+                    closeModal('forward-modal');
+                };
+                list.appendChild(btn);
+            });
+            modal.classList.remove('hidden');
+        }
+
+        function executeForward(targetPhone) {
+            if(!actionState.messageData) return;
+            const originalMsg = actionState.messageData;
+            
+            const newMsg = {
+                id: Date.now(),
+                type: originalMsg.type,
+                text: originalMsg.text,
+                dataUrl: originalMsg.dataUrl,
+                filename: originalMsg.filename,
+                sender: 'me',
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                isForwarded: true
+            };
+
+            state.chats[targetPhone].messages.push(newMsg);
+            
+            const dbRef = push(ref(db, 'messages/' + targetPhone));
+            set(dbRef, {
+                id: newMsg.id,
+                type: newMsg.type,
+                text: newMsg.text,
+                dataUrl: newMsg.dataUrl || "",
+                filename: newMsg.filename || "",
+                senderPhone: state.currentUser.phone,
+                senderName: state.currentUser.nickname,
+                time: newMsg.time,
+                isForwarded: true
+            });
+
+            showToast("Сообщение переслано");
+            saveState();
+            renderChatsList();
+            if(state.activeChat === targetPhone) renderActiveChat();
+            cancelMessageAction();
+        }
+
+        // --- ОТРИСОВКА АКТИВНОГО ЧАТА ---
+        function renderActiveChat() {
+            const noChat = document.getElementById('no-chat-selected');
+            const container = document.getElementById('messages-container');
+            const headerName = document.getElementById('active-chat-name');
+            const headerPhone = document.getElementById('active-chat-phone');
+
+            if(!state.activeChat) {
+                noChat.classList.remove('hidden');
+                container.innerHTML = '';
+                return;
+            }
+            noChat.classList.add('hidden');
+            
+            const chat = state.chats[state.activeChat];
+            headerName.innerText = chat.name;
+            headerPhone.innerText = state.activeChat;
+            
+            container.innerHTML = '';
+            
+            chat.messages.forEach(msg => {
+                if(msg.isDeleted) return; // Не рисуем удаленные
+
+                const isMe = msg.sender === 'me';
+                const wrapper = document.createElement('div');
+                wrapper.className = `flex w-full ${isMe ? 'justify-end' : 'justify-start'} fade-in message-bubble no-select`;
+                
+                // Добавляем обработчики долгого нажатия для контекстного меню
+                wrapper.onmousedown = (e) => handleMsgPointerDown(e, msg.id);
+                wrapper.onmouseup = handleMsgPointerUp;
+                wrapper.onmouseleave = handleMsgPointerUp;
+                wrapper.ontouchstart = (e) => handleMsgPointerDown(e, msg.id);
+                wrapper.ontouchend = handleMsgPointerUp;
+                wrapper.ontouchmove = handleMsgPointerMove;
+                wrapper.oncontextmenu = (e) => e.preventDefault(); // блочим стандартное меню
+
+                let content = '';
+                
+                // Блок ответа/пересылки
+                if(msg.replyToText) {
+                    content += `<div class="bg-black/20 border-l-2 border-theme p-2 mb-2 rounded text-xs opacity-80"><span class="text-theme font-bold">Ответ на:</span> ${msg.replyToText}</div>`;
+                }
+                if(msg.isForwarded) {
+                    content += `<div class="text-[10px] text-neutral-400 mb-1 font-bold uppercase">➡️ Пересланное сообщение</div>`;
+                }
+
+                // Основной контент
+                if(msg.type === 'image') {
+                    content += `<img src="${msg.dataUrl}" class="max-w-[200px] sm:max-w-xs rounded-lg shadow-sm" />`;
+                } else if (msg.type === 'file') {
+                    content += `
+                        <div class="flex items-center space-x-3 bg-black/30 p-3 rounded-lg border border-black/20 cursor-pointer hover:bg-black/50 transition" onclick="downloadFileBase64('${msg.dataUrl}', '${msg.filename}')">
+                            <span class="text-3xl">📄</span>
+                            <div class="flex flex-col max-w-[150px]">
+                                <span class="font-bold text-sm truncate">${msg.filename || 'Файл'}</span>
+                                <span class="text-[10px] text-theme font-bold uppercase">Скачать</span>
+                            </div>
+                        </div>`;
+                } else {
+                    content += `<p class="text-sm sm:text-base break-words leading-relaxed">${msg.text}</p>`;
+                }
+                
+                // Метка изменения
+                if(msg.isEdited) {
+                    content += `<span class="text-[10px] text-neutral-400/80 ml-2 italic">(изменено)</span>`;
+                }
+
+                const bgClass = isMe ? 'bg-theme text-black rounded-br-sm' : 'bg-neutral-800 text-white rounded-bl-sm';
+                
+                wrapper.innerHTML = `
+                    <div class="max-w-[85%] sm:max-w-[70%] rounded-2xl p-3 shadow-md ${bgClass} relative">
+                        ${content}
+                        <div class="flex justify-end items-center mt-1 space-x-1 opacity-60">
+                            <span class="text-[10px] font-mono">${msg.time || ''}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(wrapper);
+            });
+            
+            // Прокрутка вниз
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function downloadFileBase64(dataUrl, filename) {
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = filename || 'downloaded_file';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        // --- ВВОД И ОТПРАВКА ---
+        function autoResizeInput() {
+            const el = document.getElementById('message-input');
+            el.style.height = 'auto';
+            el.style.height = (el.scrollHeight) + 'px';
+        }
+
+        function sendFileMessage(event, type) {
+            const file = event.target.files[0];
+            if(!file) return;
+            
+            // Ограничение 5MB для надежности base64 localStorage (в реале храним на Storage, но здесь по ТЗ)
+            if(file.size > 5 * 1024 * 1024) {
+                showToast("Файл слишком большой! Максимум 5 МБ для демо.", "error");
+                event.target.value = '';
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                pushMessageToStateAndDb({
+                    type: type, // 'image' или 'file'
+                    dataUrl: dataUrl,
+                    filename: file.name
+                });
+            };
+            reader.readAsDataURL(file);
+            event.target.value = '';
+        }
+
+        function submitMessage() {
+            if(!state.activeChat) return;
+            const input = document.getElementById('message-input');
+            const text = input.value.trim();
+            if(!text) return;
+
+            // Логика редактирования
+            if(actionState.type === 'edit') {
+                const chat = state.chats[state.activeChat];
+                const msg = chat.messages.find(m => m.id === actionState.messageId);
+                if(msg) {
+                    msg.text = text;
+                    msg.isEdited = true;
+                    // В реальном приложении обновляем в Firebase, но по условиям 
+                    // сообщения локальные после прочтения. Обновляем только у себя:
+                    saveState();
+                    renderActiveChat();
+                }
+                cancelMessageAction();
+                return;
+            }
+
+            // Обычная отправка (или с ответом)
+            pushMessageToStateAndDb({
+                type: 'text',
+                text: text,
+                replyToText: actionState.type === 'reply' ? actionState.messageText : null
+            });
+
+            cancelMessageAction(); // очистит инпут и сбросит стейт
+        }
+
+        function pushMessageToStateAndDb(msgData) {
+            const chat = state.chats[state.activeChat];
+            const newMsg = {
+                id: Date.now(),
+                sender: 'me',
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                ...msgData
+            };
+            
+            chat.messages.push(newMsg);
+            saveState();
+            renderActiveChat();
+            renderChatsList();
+
+            // Отправка в сеть
+            const dbRef = push(ref(db, 'messages/' + state.activeChat));
+            set(dbRef, {
+                id: newMsg.id,
+                senderPhone: state.currentUser.phone,
+                senderName: state.currentUser.nickname,
+                time: newMsg.time,
+                ...msgData
+            }).catch(() => showToast("Ошибка отправки", "error"));
+        }
+
+        // --- ПРИЕМ СООБЩЕНИЙ ---
+        function listenToMessages() {
+            if(!state.currentUser) return;
+            const refMsgs = ref(db, 'messages/' + state.currentUser.phone);
+            
+            onChildAdded(refMsgs, (snap) => {
+                const data = snap.val();
+                if(data && data.senderPhone) {
+                    const from = data.senderPhone;
+                    if(!state.chats[from]) {
+                        state.chats[from] = { name: data.senderName || from, messages: [] };
+                        // Сохранение нового контакта в базу
+                        update(ref(db, `users/${state.currentUser.phone}/contacts/${from}`), { name: data.senderName || from });
+                    }
+                    
+                    const chat = state.chats[from];
+                    if(!chat.messages.find(m => m.id === data.id)) {
+                        chat.messages.push({
+                            id: data.id,
+                            type: data.type || 'text',
+                            text: data.text,
+                            dataUrl: data.dataUrl,
+                            filename: data.filename,
+                            replyToText: data.replyToText,
+                            isForwarded: data.isForwarded,
+                            sender: 'them',
+                            time: data.time
+                        });
+                        saveState();
+                        renderChatsList();
+                        if(state.activeChat === from) renderActiveChat();
+                    }
+                    // Удаляем с сервера (остается только локально, как в ТЗ)
+                    remove(ref(db, `messages/${state.currentUser.phone}/${snap.key}`));
+                }
+            });
+        }
+
+        // --- МОДАЛКИ (ОТКРЫТЬ/ЗАКРЫТЬ) ---
+        function closeModal(id) {
+            const el = document.getElementById(id);
+            el.classList.remove('fade-in');
+            el.classList.add('hidden');
+            // Хак для повторной анимации
+            setTimeout(() => el.classList.add('fade-in'), 100);
+        }
+
+        function openFriendsModal() { document.getElementById('friend-modal').classList.remove('hidden'); }
+        function toggleEditContactModal() {
+            if(!state.activeChat) return;
+            document.getElementById('edit-contact-name-input').value = state.chats[state.activeChat].name;
+            document.getElementById('edit-contact-modal').classList.remove('hidden');
+        }
+        
+        function handleAvatarUpload(event) {
+            const file = event.target.files[0];
+            if(!file) return;
+            if(file.size > 2 * 1024 * 1024) {
+                return showToast("Фото слишком большое! Максимум 2 МБ", "error");
+            }
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const dataUrl = e.target.result;
+                state.currentUser.avatar = dataUrl;
+                document.getElementById('profile-modal-avatar-preview').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover">`;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function openMyProfileModal() {
+            document.getElementById('my-profile-name-input').value = state.currentUser.nickname;
+            document.getElementById('my-profile-password-input').value = "";
+            document.getElementById('my-profile-ring-color').value = state.currentUser.ringColor || "#22c55e";
+            
+            const preview = document.getElementById('profile-modal-avatar-preview');
+            if (state.currentUser.avatar && state.currentUser.avatar.startsWith('data:image')) {
+                preview.innerHTML = `<img src="${state.currentUser.avatar}" class="w-full h-full object-cover">`;
+            } else {
+                preview.innerHTML = `<span class="text-3xl">🦆</span>`;
+            }
+            
+            document.getElementById('my-profile-modal').classList.remove('hidden');
+        }
+
+        // --- УПРАВЛЕНИЕ КОНТАКТАМИ ---
+        function submitAddFriend() {
+            const rawPhone = document.getElementById('friend-phone').value.trim();
+            const phone = rawPhone.replace(/[^0-9+]/g, '');
+            const name = document.getElementById('friend-name').value.trim() || phone;
+            
+            if(!phone) return showToast("Введите корректный номер", "error");
+            if(phone === state.currentUser.phone) return showToast("Нельзя добавить себя", "error");
+
+            if(!state.chats[phone]) {
+                state.chats[phone] = { name: name, messages: [] };
+                // Сохранение контакта в базу данных Firebase
+                update(ref(db, `users/${state.currentUser.phone}/contacts/${phone}`), { name: name });
+                saveState();
+                renderChatsList();
+                showToast("Контакт добавлен");
+            }
+            closeModal('friend-modal');
+        }
+
+        function saveContactChanges() {
+            const newName = document.getElementById('edit-contact-name-input').value.trim();
+            if(newName && state.activeChat) {
+                state.chats[state.activeChat].name = newName;
+                // Обновление имени контакта в базе данных
+                update(ref(db, `users/${state.currentUser.phone}/contacts/${state.activeChat}`), { name: newName });
+                saveState();
+                renderChatsList();
+                renderActiveChat();
+                showToast("Имя сохранено");
+            }
+            closeModal('edit-contact-modal');
+        }
+
+        function deleteCurrentContact() {
+            if(!state.activeChat) return;
+            
+            // Удаление друга из Firebase
+            remove(ref(db, `users/${state.currentUser.phone}/contacts/${state.activeChat}`));
+            
+            // Удаляем контакт из стейта
+            delete state.chats[state.activeChat];
+            state.activeChat = null;
+            saveState();
+            
+            renderChatsList();
+            renderActiveChat();
+            
+            // Если на мобилке, возвращаемся в список
+            if(window.innerWidth < 768) {
+                backToChats();
+            }
+            
+            closeModal('edit-contact-modal');
+            showToast("Контакт удален", "error");
+        }
+
+        // --- УПРАВЛЕНИЕ ПРОФИЛЕМ ---
+        function saveMyProfileChanges() {
+            const newNick = document.getElementById('my-profile-name-input').value.trim();
+            const newPass = document.getElementById('my-profile-password-input').value.trim();
+            const newColor = document.getElementById('my-profile-ring-color').value;
+
+            if(newNick) state.currentUser.nickname = newNick;
+            if(newPass) state.currentUser.password = newPass;
+            state.currentUser.ringColor = newColor;
+
+            // Обновляем в Firebase
+            update(ref(db, 'users/' + state.currentUser.phone), {
+                nickname: state.currentUser.nickname,
+                password: state.currentUser.password,
+                ringColor: state.currentUser.ringColor,
+                avatar: state.currentUser.avatar || null
+            });
+
+            saveState();
+            updateProfileUI();
+            closeModal('my-profile-modal');
+            showToast("Настройки профиля сохранены");
+        }
+    </script>
+</body>
+</html>
