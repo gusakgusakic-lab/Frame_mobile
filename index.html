@@ -289,15 +289,6 @@
                 <button onclick="closeModal('my-profile-modal')" class="text-neutral-400 hover:text-white">✕</button>
             </div>
 
-            <!-- Аватарка -->
-            <div class="mb-6 flex flex-col items-center">
-                <div id="profile-modal-avatar-preview" class="w-20 h-20 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden border-2 border-theme cursor-pointer mb-3" onclick="document.getElementById('avatar-upload').click()">
-                    <span class="text-3xl">🦆</span>
-                </div>
-                <button onclick="document.getElementById('avatar-upload').click()" class="text-theme text-sm font-bold bg-neutral-800 px-4 py-2 rounded-xl hover:bg-neutral-700 transition active:scale-95">Загрузить фото</button>
-                <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
-            </div>
-
             <!-- Слайдер темы (Оранжевый -> Темно-Зеленый) -->
             <div class="mb-6 bg-black p-4 rounded-xl border border-neutral-800">
                 <label class="block text-theme text-xs font-bold mb-3 uppercase tracking-wider flex justify-between">
@@ -415,8 +406,7 @@
                 openMyProfileModal, saveMyProfileChanges, applyTheme,
                 submitMessage, sendFileMessage, selectChat, backToChats,
                 autoResizeInput, cancelMessageAction, ctxAction,
-                handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadFileBase64,
-                handleAvatarUpload
+                handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadFileBase64
             });
 
             // Закрытие контекстного меню при клике вне
@@ -521,23 +511,9 @@
                 get(ref(db, 'users/' + phone)).then((snap) => {
                     if (snap.exists() && snap.val().password === pass) {
                         state.currentUser = snap.val();
-                        
-                        // Загрузка контактов из Firebase
-                        get(ref(db, 'users/' + phone + '/contacts')).then((contactsSnap) => {
-                            if (contactsSnap.exists()) {
-                                const contacts = contactsSnap.val();
-                                Object.keys(contacts).forEach(cPhone => {
-                                    if (!state.chats[cPhone]) {
-                                        state.chats[cPhone] = { name: contacts[cPhone].name, messages: [] };
-                                    } else {
-                                        state.chats[cPhone].name = contacts[cPhone].name;
-                                    }
-                                });
-                            }
-                            showToast("Вход выполнен");
-                            saveState();
-                            showMainScreen();
-                        });
+                        showToast("Вход выполнен");
+                        saveState();
+                        showMainScreen();
                     } else {
                         showToast("Неверный логин или пароль", "error");
                     }
@@ -576,13 +552,6 @@
             if(!state.currentUser) return;
             document.getElementById('my-nickname').innerText = state.currentUser.nickname || 'User';
             document.documentElement.style.setProperty('--user-ring', state.currentUser.ringColor || '#22c55e');
-            
-            const avatarWrapper = document.getElementById('my-avatar-wrapper');
-            if (state.currentUser.avatar && state.currentUser.avatar.startsWith('data:image')) {
-                avatarWrapper.innerHTML = `<img src="${state.currentUser.avatar}" class="w-full h-full object-cover rounded-full">`;
-            } else {
-                avatarWrapper.innerHTML = `<span id="my-avatar" class="text-lg">🦆</span>`;
-            }
         }
 
         // --- МОБИЛЬНАЯ АДАПТИВНОСТЬ МЕНЮ ---
@@ -1040,8 +1009,6 @@
                     const from = data.senderPhone;
                     if(!state.chats[from]) {
                         state.chats[from] = { name: data.senderName || from, messages: [] };
-                        // Сохранение нового контакта в базу
-                        update(ref(db, `users/${state.currentUser.phone}/contacts/${from}`), { name: data.senderName || from });
                     }
                     
                     const chat = state.chats[from];
@@ -1082,34 +1049,10 @@
             document.getElementById('edit-contact-name-input').value = state.chats[state.activeChat].name;
             document.getElementById('edit-contact-modal').classList.remove('hidden');
         }
-        
-        function handleAvatarUpload(event) {
-            const file = event.target.files[0];
-            if(!file) return;
-            if(file.size > 2 * 1024 * 1024) {
-                return showToast("Фото слишком большое! Максимум 2 МБ", "error");
-            }
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const dataUrl = e.target.result;
-                state.currentUser.avatar = dataUrl;
-                document.getElementById('profile-modal-avatar-preview').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover">`;
-            };
-            reader.readAsDataURL(file);
-        }
-
         function openMyProfileModal() {
             document.getElementById('my-profile-name-input').value = state.currentUser.nickname;
             document.getElementById('my-profile-password-input').value = "";
             document.getElementById('my-profile-ring-color').value = state.currentUser.ringColor || "#22c55e";
-            
-            const preview = document.getElementById('profile-modal-avatar-preview');
-            if (state.currentUser.avatar && state.currentUser.avatar.startsWith('data:image')) {
-                preview.innerHTML = `<img src="${state.currentUser.avatar}" class="w-full h-full object-cover">`;
-            } else {
-                preview.innerHTML = `<span class="text-3xl">🦆</span>`;
-            }
-            
             document.getElementById('my-profile-modal').classList.remove('hidden');
         }
 
@@ -1124,8 +1067,6 @@
 
             if(!state.chats[phone]) {
                 state.chats[phone] = { name: name, messages: [] };
-                // Сохранение контакта в базу данных Firebase
-                update(ref(db, `users/${state.currentUser.phone}/contacts/${phone}`), { name: name });
                 saveState();
                 renderChatsList();
                 showToast("Контакт добавлен");
@@ -1137,8 +1078,6 @@
             const newName = document.getElementById('edit-contact-name-input').value.trim();
             if(newName && state.activeChat) {
                 state.chats[state.activeChat].name = newName;
-                // Обновление имени контакта в базе данных
-                update(ref(db, `users/${state.currentUser.phone}/contacts/${state.activeChat}`), { name: newName });
                 saveState();
                 renderChatsList();
                 renderActiveChat();
@@ -1149,9 +1088,6 @@
 
         function deleteCurrentContact() {
             if(!state.activeChat) return;
-            
-            // Удаление друга из Firebase
-            remove(ref(db, `users/${state.currentUser.phone}/contacts/${state.activeChat}`));
             
             // Удаляем контакт из стейта
             delete state.chats[state.activeChat];
@@ -1184,8 +1120,7 @@
             update(ref(db, 'users/' + state.currentUser.phone), {
                 nickname: state.currentUser.nickname,
                 password: state.currentUser.password,
-                ringColor: state.currentUser.ringColor,
-                avatar: state.currentUser.avatar || null
+                ringColor: state.currentUser.ringColor
             });
 
             saveState();
