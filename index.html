@@ -173,7 +173,7 @@
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
                         </button>
                         <div class="flex items-center space-x-3 cursor-pointer" onclick="toggleEditContactModal()">
-                            <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-xl border border-neutral-700" id="active-chat-avatar">👤</div>
+                            <div class="w-10 h-10 rounded-full bg-neutral-800 flex items-center justify-center text-xl border border-neutral-700 overflow-hidden" id="active-chat-avatar">👤</div>
                             <div>
                                 <h3 id="active-chat-name" class="font-bold text-white text-base leading-tight">Имя контакта</h3>
                                 <p id="active-chat-phone" class="text-xs text-neutral-500">телефон</p>
@@ -203,16 +203,11 @@
                 <div class="p-3 sm:p-4 bg-[var(--theme-bg-panel)] shrink-0 border-t border-neutral-800 relative z-20">
                     <div class="flex items-end space-x-2 max-w-4xl mx-auto">
                         
-                        <div class="flex flex-col space-y-2 pb-1.5 shrink-0">
-                            <!-- Файл -->
+                        <!-- Объединенная кнопка загрузки -->
+                        <div class="pb-1.5 shrink-0">
                             <label class="p-2 bg-neutral-800 rounded-full cursor-pointer hover:bg-neutral-700 transition text-neutral-400 hover:text-theme">
-                                <input type="file" id="chat-file-upload" class="hidden" onchange="sendFileMessage(event, 'file')">
+                                <input type="file" id="chat-file-upload" class="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar" onchange="handleFileUpload(event)">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
-                            </label>
-                            <!-- Фото -->
-                            <label class="p-2 bg-neutral-800 rounded-full cursor-pointer hover:bg-neutral-700 transition text-neutral-400 hover:text-theme">
-                                <input type="file" id="chat-image-upload" accept="image/*" class="hidden" onchange="sendFileMessage(event, 'image')">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
                             </label>
                         </div>
 
@@ -375,7 +370,8 @@
             currentUser: null,
             chats: {},
             activeChat: null,
-            themeSliderValue: 0
+            themeSliderValue: 0,
+            userAvatars: {} // Кэш аватарок пользователей
         };
 
         // Состояния действий с сообщениями
@@ -401,6 +397,7 @@
                     state.chats = parsed.chats || {};
                     state.activeChat = parsed.activeChat || null;
                     state.themeSliderValue = parsed.themeSliderValue || 0;
+                    state.userAvatars = parsed.userAvatars || {};
                 } catch(e) { console.error("Parse error", e); }
             }
 
@@ -413,7 +410,7 @@
                 openFriendsModal, closeModal, submitAddFriend,
                 toggleEditContactModal, saveContactChanges, deleteCurrentContact,
                 openMyProfileModal, saveMyProfileChanges, applyTheme,
-                submitMessage, sendFileMessage, selectChat, backToChats,
+                submitMessage, handleFileUpload, selectChat, backToChats,
                 autoResizeInput, cancelMessageAction, ctxAction,
                 handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadFileBase64,
                 handleAvatarUpload
@@ -512,8 +509,12 @@
 
             if (currentAuthMode === 'register') {
                 if (!nick) return showToast("Введите никнейм", "error");
-                state.currentUser = { phone, nickname: nick, password: pass, ringColor: "#22c55e" };
+                state.currentUser = { phone, nickname: nick, password: pass, ringColor: "#22c55e", avatar: null };
                 set(ref(db, 'users/' + phone), state.currentUser);
+                
+                // Сохраняем аватарку в глобальный кэш
+                state.userAvatars[phone] = null;
+                
                 showToast("Регистрация успешна!");
                 saveState();
                 showMainScreen();
@@ -522,16 +523,37 @@
                     if (snap.exists() && snap.val().password === pass) {
                         state.currentUser = snap.val();
                         
+                        // Кэшируем свою аватарку
+                        if (state.currentUser.avatar) {
+                            state.userAvatars[phone] = state.currentUser.avatar;
+                        }
+                        
                         // Загрузка контактов из Firebase
                         get(ref(db, 'users/' + phone + '/contacts')).then((contactsSnap) => {
                             if (contactsSnap.exists()) {
                                 const contacts = contactsSnap.val();
+                                const contactPromises = [];
+                                
                                 Object.keys(contacts).forEach(cPhone => {
                                     if (!state.chats[cPhone]) {
                                         state.chats[cPhone] = { name: contacts[cPhone].name, messages: [] };
                                     } else {
                                         state.chats[cPhone].name = contacts[cPhone].name;
                                     }
+                                    
+                                    // Загружаем аватарку контакта
+                                    contactPromises.push(
+                                        get(ref(db, 'users/' + cPhone)).then((userSnap) => {
+                                            if (userSnap.exists() && userSnap.val().avatar) {
+                                                state.userAvatars[cPhone] = userSnap.val().avatar;
+                                            }
+                                        }).catch(() => {})
+                                    );
+                                });
+                                
+                                Promise.all(contactPromises).then(() => {
+                                    saveState();
+                                    renderChatsList();
                                 });
                             }
                             showToast("Вход выполнен");
@@ -570,6 +592,7 @@
             }
 
             listenToMessages();
+            listenToUserUpdates();
         }
 
         function updateProfileUI() {
@@ -638,12 +661,18 @@
                 const isActive = state.activeChat === phone;
                 const bgClass = isActive ? 'bg-theme text-black shadow-lg' : 'hover:bg-neutral-800 text-white';
                 const textMuted = isActive ? 'text-black/70' : 'text-neutral-500';
+                
+                // Получаем аватарку пользователя
+                const userAvatar = state.userAvatars[phone];
+                const avatarContent = userAvatar && userAvatar.startsWith('data:image') 
+                    ? `<img src="${userAvatar}" class="w-full h-full object-cover rounded-full">` 
+                    : '👤';
 
                 const el = document.createElement('div');
                 el.className = `p-3 rounded-2xl cursor-pointer transition-all flex items-center space-x-3 mb-1 ${bgClass}`;
                 el.onclick = () => selectChat(phone);
                 el.innerHTML = `
-                    <div class="w-12 h-12 rounded-full ${isActive?'bg-black/20':'bg-neutral-800'} flex items-center justify-center text-xl shrink-0">👤</div>
+                    <div class="w-12 h-12 rounded-full ${isActive?'bg-black/20':'bg-neutral-800'} flex items-center justify-center text-xl shrink-0 overflow-hidden">${avatarContent}</div>
                     <div class="overflow-hidden flex-1">
                         <h4 class="font-bold text-sm truncate">${chat.name}</h4>
                         <p class="text-xs truncate ${textMuted}">${lastTxt}</p>
@@ -854,6 +883,7 @@
             const container = document.getElementById('messages-container');
             const headerName = document.getElementById('active-chat-name');
             const headerPhone = document.getElementById('active-chat-phone');
+            const headerAvatar = document.getElementById('active-chat-avatar');
 
             if(!state.activeChat) {
                 noChat.classList.remove('hidden');
@@ -865,6 +895,14 @@
             const chat = state.chats[state.activeChat];
             headerName.innerText = chat.name;
             headerPhone.innerText = state.activeChat;
+            
+            // Обновляем аватарку в шапке чата
+            const userAvatar = state.userAvatars[state.activeChat];
+            if (userAvatar && userAvatar.startsWith('data:image')) {
+                headerAvatar.innerHTML = `<img src="${userAvatar}" class="w-full h-full object-cover">`;
+            } else {
+                headerAvatar.innerHTML = '👤';
+            }
             
             container.innerHTML = '';
             
@@ -948,9 +986,13 @@
             el.style.height = (el.scrollHeight) + 'px';
         }
 
-        function sendFileMessage(event, type) {
+        function handleFileUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
+            
+            // Определяем тип файла
+            const isImage = file.type.startsWith('image/');
+            const type = isImage ? 'image' : 'file';
             
             // Ограничение 5MB для надежности base64 localStorage (в реале храним на Storage, но здесь по ТЗ)
             if(file.size > 5 * 1024 * 1024) {
@@ -963,7 +1005,7 @@
             reader.onload = (e) => {
                 const dataUrl = e.target.result;
                 pushMessageToStateAndDb({
-                    type: type, // 'image' или 'file'
+                    type: type,
                     dataUrl: dataUrl,
                     filename: file.name
                 });
@@ -1042,6 +1084,15 @@
                         state.chats[from] = { name: data.senderName || from, messages: [] };
                         // Сохранение нового контакта в базу
                         update(ref(db, `users/${state.currentUser.phone}/contacts/${from}`), { name: data.senderName || from });
+                        
+                        // Загружаем аватарку нового контакта
+                        get(ref(db, 'users/' + from)).then((userSnap) => {
+                            if (userSnap.exists() && userSnap.val().avatar) {
+                                state.userAvatars[from] = userSnap.val().avatar;
+                                saveState();
+                                renderChatsList();
+                            }
+                        });
                     }
                     
                     const chat = state.chats[from];
@@ -1064,6 +1115,27 @@
                     // Удаляем с сервера (остается только локально, как в ТЗ)
                     remove(ref(db, `messages/${state.currentUser.phone}/${snap.key}`));
                 }
+            });
+        }
+
+        // --- ОБНОВЛЕНИЕ АВАТАРОК ПОЛЬЗОВАТЕЛЕЙ ---
+        function listenToUserUpdates() {
+            if(!state.currentUser) return;
+            
+            // Слушаем обновления всех контактов
+            Object.keys(state.chats).forEach(phone => {
+                const userRef = ref(db, 'users/' + phone);
+                onValue(userRef, (snap) => {
+                    if (snap.exists()) {
+                        const userData = snap.val();
+                        if (userData.avatar && userData.avatar !== state.userAvatars[phone]) {
+                            state.userAvatars[phone] = userData.avatar;
+                            saveState();
+                            renderChatsList();
+                            if(state.activeChat === phone) renderActiveChat();
+                        }
+                    }
+                });
             });
         }
 
@@ -1093,7 +1165,13 @@
             reader.onload = (e) => {
                 const dataUrl = e.target.result;
                 state.currentUser.avatar = dataUrl;
+                state.userAvatars[state.currentUser.phone] = dataUrl;
                 document.getElementById('profile-modal-avatar-preview').innerHTML = `<img src="${dataUrl}" class="w-full h-full object-cover">`;
+                
+                // Обновляем аватарку в Firebase
+                update(ref(db, 'users/' + state.currentUser.phone), {
+                    avatar: dataUrl
+                });
             };
             reader.readAsDataURL(file);
         }
@@ -1126,8 +1204,16 @@
                 state.chats[phone] = { name: name, messages: [] };
                 // Сохранение контакта в базу данных Firebase
                 update(ref(db, `users/${state.currentUser.phone}/contacts/${phone}`), { name: name });
-                saveState();
-                renderChatsList();
+                
+                // Загружаем аватарку контакта
+                get(ref(db, 'users/' + phone)).then((userSnap) => {
+                    if (userSnap.exists() && userSnap.val().avatar) {
+                        state.userAvatars[phone] = userSnap.val().avatar;
+                    }
+                    saveState();
+                    renderChatsList();
+                });
+                
                 showToast("Контакт добавлен");
             }
             closeModal('friend-modal');
@@ -1155,6 +1241,7 @@
             
             // Удаляем контакт из стейта
             delete state.chats[state.activeChat];
+            delete state.userAvatars[state.activeChat];
             state.activeChat = null;
             saveState();
             
