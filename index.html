@@ -54,6 +54,13 @@
             -ms-user-select: none;
             user-select: none;
         }
+        
+        /* Мобильная оптимизация: поднимаем строку ввода на 1.4см */
+        @media (max-width: 767px) {
+            .input-panel-mobile {
+                padding-bottom: calc(1.4cm + env(safe-area-inset-bottom, 0px)) !important;
+            }
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col">
@@ -199,8 +206,8 @@
                     <button onclick="cancelMessageAction()" class="text-neutral-400 hover:text-white p-1">✕</button>
                 </div>
 
-                <!-- Панель ввода -->
-                <div class="p-2 sm:p-3 bg-[var(--theme-bg-panel)] shrink-0 border-t border-neutral-800 relative z-20">
+                <!-- Панель ввода с мобильной оптимизацией -->
+                <div class="p-2 sm:p-3 bg-[var(--theme-bg-panel)] shrink-0 border-t border-neutral-800 relative z-20 input-panel-mobile">
                     <div class="flex items-center space-x-2 max-w-4xl mx-auto">
                         
                         <!-- Объединенная кнопка загрузки -->
@@ -355,7 +362,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, set, push, onChildAdded, onValue, get, remove, update } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+        import { getDatabase, ref, set, push, onChildAdded, onValue, get, remove, update, onChildChanged, onChildRemoved } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
         // Конфигурация Firebase
         const firebaseConfig = {
@@ -363,7 +370,7 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
-        const STORAGE_KEY = 'framework_msg_v5';
+        const STORAGE_KEY = 'framework_msg_v6';
 
         // Глобальное состояние
         let state = {
@@ -371,7 +378,8 @@
             chats: {},
             activeChat: null,
             themeSliderValue: 0,
-            userAvatars: {} // Кэш аватарок пользователей
+            userAvatars: {}, // Кэш аватарок пользователей
+            contacts: {} // Синхронизированные контакты
         };
 
         // Состояния действий с сообщениями
@@ -398,6 +406,7 @@
                     state.activeChat = parsed.activeChat || null;
                     state.themeSliderValue = parsed.themeSliderValue || 0;
                     state.userAvatars = parsed.userAvatars || {};
+                    state.contacts = parsed.contacts || {};
                 } catch(e) { console.error("Parse error", e); }
             }
 
@@ -425,6 +434,8 @@
 
             if (state.currentUser) {
                 showMainScreen();
+                syncContactsFromFirebase();
+                syncUserAvatars();
             } else {
                 showAuthScreen();
             }
@@ -509,7 +520,14 @@
 
             if (currentAuthMode === 'register') {
                 if (!nick) return showToast("Введите никнейм", "error");
-                state.currentUser = { phone, nickname: nick, password: pass, ringColor: "#22c55e", avatar: null };
+                state.currentUser = { 
+                    phone, 
+                    nickname: nick, 
+                    password: pass, 
+                    ringColor: "#22c55e", 
+                    avatar: null,
+                    contacts: {}
+                };
                 set(ref(db, 'users/' + phone), state.currentUser);
                 
                 // Сохраняем аватарку в глобальный кэш
@@ -518,6 +536,8 @@
                 showToast("Регистрация успешна!");
                 saveState();
                 showMainScreen();
+                syncContactsFromFirebase();
+                syncUserAvatars();
             } else {
                 get(ref(db, 'users/' + phone)).then((snap) => {
                     if (snap.exists() && snap.val().password === pass) {
@@ -528,38 +548,11 @@
                             state.userAvatars[phone] = state.currentUser.avatar;
                         }
                         
-                        // Загрузка контактов из Firebase
-                        get(ref(db, 'users/' + phone + '/contacts')).then((contactsSnap) => {
-                            if (contactsSnap.exists()) {
-                                const contacts = contactsSnap.val();
-                                const contactPromises = [];
-                                
-                                Object.keys(contacts).forEach(cPhone => {
-                                    if (!state.chats[cPhone]) {
-                                        state.chats[cPhone] = { name: contacts[cPhone].name, messages: [] };
-                                    } else {
-                                        state.chats[cPhone].name = contacts[cPhone].name;
-                                    }
-                                    
-                                    // Загружаем аватарку контакта
-                                    contactPromises.push(
-                                        get(ref(db, 'users/' + cPhone)).then((userSnap) => {
-                                            if (userSnap.exists() && userSnap.val().avatar) {
-                                                state.userAvatars[cPhone] = userSnap.val().avatar;
-                                            }
-                                        }).catch(() => {})
-                                    );
-                                });
-                                
-                                Promise.all(contactPromises).then(() => {
-                                    saveState();
-                                    renderChatsList();
-                                });
-                            }
-                            showToast("Вход выполнен");
-                            saveState();
-                            showMainScreen();
-                        });
+                        showToast("Вход выполнен");
+                        saveState();
+                        showMainScreen();
+                        syncContactsFromFirebase();
+                        syncUserAvatars();
                     } else {
                         showToast("Неверный логин или пароль", "error");
                     }
@@ -573,6 +566,106 @@
             saveState();
             closeModal('my-profile-modal');
             showAuthScreen();
+        }
+
+        // --- СИНХРОНИЗАЦИЯ КОНТАКТОВ И АВАТАРОК ---
+        function syncContactsFromFirebase() {
+            if(!state.currentUser) return;
+            
+            const contactsRef = ref(db, 'users/' + state.currentUser.phone + '/contacts');
+            
+            // Слушаем добавление контактов
+            onChildAdded(contactsRef, (snap) => {
+                const contactPhone = snap.key;
+                const contactData = snap.val();
+                
+                if (contactPhone !== state.currentUser.phone) {
+                    if (!state.chats[contactPhone]) {
+                        state.chats[contactPhone] = { 
+                            name: contactData.name || contactPhone, 
+                            messages: [] 
+                        };
+                    } else {
+                        state.chats[contactPhone].name = contactData.name || state.chats[contactPhone].name;
+                    }
+                    
+                    state.contacts[contactPhone] = contactData;
+                    saveState();
+                    renderChatsList();
+                    
+                    // Загружаем аватарку контакта
+                    loadUserAvatar(contactPhone);
+                }
+            });
+            
+            // Слушаем изменения контактов
+            onChildChanged(contactsRef, (snap) => {
+                const contactPhone = snap.key;
+                const contactData = snap.val();
+                
+                if (state.chats[contactPhone]) {
+                    state.chats[contactPhone].name = contactData.name || state.chats[contactPhone].name;
+                    state.contacts[contactPhone] = contactData;
+                    saveState();
+                    renderChatsList();
+                }
+            });
+            
+            // Слушаем удаление контактов
+            onChildRemoved(contactsRef, (snap) => {
+                const contactPhone = snap.key;
+                
+                if (state.chats[contactPhone]) {
+                    delete state.chats[contactPhone];
+                    delete state.contacts[contactPhone];
+                    delete state.userAvatars[contactPhone];
+                    
+                    if (state.activeChat === contactPhone) {
+                        state.activeChat = null;
+                        renderActiveChat();
+                    }
+                    
+                    saveState();
+                    renderChatsList();
+                }
+            });
+        }
+
+        function syncUserAvatars() {
+            if(!state.currentUser) return;
+            
+            // Слушаем изменения своей аватарки
+            const myUserRef = ref(db, 'users/' + state.currentUser.phone);
+            onValue(myUserRef, (snap) => {
+                if (snap.exists()) {
+                    const userData = snap.val();
+                    if (userData.avatar !== state.currentUser.avatar) {
+                        state.currentUser.avatar = userData.avatar;
+                        state.userAvatars[state.currentUser.phone] = userData.avatar;
+                        saveState();
+                        updateProfileUI();
+                    }
+                }
+            });
+            
+            // Загружаем аватарки всех контактов
+            Object.keys(state.chats).forEach(phone => {
+                loadUserAvatar(phone);
+            });
+        }
+
+        function loadUserAvatar(phone) {
+            get(ref(db, 'users/' + phone)).then((userSnap) => {
+                if (userSnap.exists()) {
+                    const userData = userSnap.val();
+                    if (userData.avatar) {
+                        state.userAvatars[phone] = userData.avatar;
+                    }
+                    saveState();
+                    renderChatsList();
+                    if(state.activeChat === phone) renderActiveChat();
+                }
+            }).catch(() => {});
         }
 
         // --- ГЛАВНЫЙ ЭКРАН И ЧАТЫ ---
@@ -592,7 +685,6 @@
             }
 
             listenToMessages();
-            listenToUserUpdates();
         }
 
         function updateProfileUI() {
@@ -780,10 +872,6 @@
                 msg.text = "";
                 msg.dataUrl = "";
                 
-                // Удаляем из Firebase у себя и у собеседника
-                const myPhone = state.currentUser.phone;
-                const theirPhone = state.activeChat;
-                // В реальном приложении нужно искать точный ключ, здесь упрощенно для демо (так как структура push)
                 showToast("Сообщение удалено");
                 saveState();
                 renderActiveChat();
@@ -1027,8 +1115,6 @@
                 if(msg) {
                     msg.text = text;
                     msg.isEdited = true;
-                    // В реальном приложении обновляем в Firebase, но по условиям 
-                    // сообщения локальные после прочтения. Обновляем только у себя:
                     saveState();
                     renderActiveChat();
                 }
@@ -1080,19 +1166,18 @@
                 const data = snap.val();
                 if(data && data.senderPhone) {
                     const from = data.senderPhone;
+                    
+                    // Автоматически добавляем контакт, если его нет
                     if(!state.chats[from]) {
                         state.chats[from] = { name: data.senderName || from, messages: [] };
-                        // Сохранение нового контакта в базу
-                        update(ref(db, `users/${state.currentUser.phone}/contacts/${from}`), { name: data.senderName || from });
+                        
+                        // Сохраняем контакт в Firebase
+                        update(ref(db, `users/${state.currentUser.phone}/contacts/${from}`), { 
+                            name: data.senderName || from 
+                        });
                         
                         // Загружаем аватарку нового контакта
-                        get(ref(db, 'users/' + from)).then((userSnap) => {
-                            if (userSnap.exists() && userSnap.val().avatar) {
-                                state.userAvatars[from] = userSnap.val().avatar;
-                                saveState();
-                                renderChatsList();
-                            }
-                        });
+                        loadUserAvatar(from);
                     }
                     
                     const chat = state.chats[from];
@@ -1115,27 +1200,6 @@
                     // Удаляем с сервера (остается только локально, как в ТЗ)
                     remove(ref(db, `messages/${state.currentUser.phone}/${snap.key}`));
                 }
-            });
-        }
-
-        // --- ОБНОВЛЕНИЕ АВАТАРОК ПОЛЬЗОВАТЕЛЕЙ ---
-        function listenToUserUpdates() {
-            if(!state.currentUser) return;
-            
-            // Слушаем обновления всех контактов
-            Object.keys(state.chats).forEach(phone => {
-                const userRef = ref(db, 'users/' + phone);
-                onValue(userRef, (snap) => {
-                    if (snap.exists()) {
-                        const userData = snap.val();
-                        if (userData.avatar && userData.avatar !== state.userAvatars[phone]) {
-                            state.userAvatars[phone] = userData.avatar;
-                            saveState();
-                            renderChatsList();
-                            if(state.activeChat === phone) renderActiveChat();
-                        }
-                    }
-                });
             });
         }
 
@@ -1172,6 +1236,9 @@
                 update(ref(db, 'users/' + state.currentUser.phone), {
                     avatar: dataUrl
                 });
+                
+                saveState();
+                updateProfileUI();
             };
             reader.readAsDataURL(file);
         }
@@ -1202,18 +1269,18 @@
 
             if(!state.chats[phone]) {
                 state.chats[phone] = { name: name, messages: [] };
-                // Сохранение контакта в базу данных Firebase
-                update(ref(db, `users/${state.currentUser.phone}/contacts/${phone}`), { name: name });
                 
-                // Загружаем аватарку контакта
-                get(ref(db, 'users/' + phone)).then((userSnap) => {
-                    if (userSnap.exists() && userSnap.val().avatar) {
-                        state.userAvatars[phone] = userSnap.val().avatar;
-                    }
-                    saveState();
-                    renderChatsList();
+                // Сохранение контакта в Firebase
+                update(ref(db, `users/${state.currentUser.phone}/contacts/${phone}`), { 
+                    name: name,
+                    addedAt: Date.now()
                 });
                 
+                // Загружаем аватарку контакта
+                loadUserAvatar(phone);
+                
+                saveState();
+                renderChatsList();
                 showToast("Контакт добавлен");
             }
             closeModal('friend-modal');
@@ -1223,8 +1290,12 @@
             const newName = document.getElementById('edit-contact-name-input').value.trim();
             if(newName && state.activeChat) {
                 state.chats[state.activeChat].name = newName;
-                // Обновление имени контакта в базе данных
-                update(ref(db, `users/${state.currentUser.phone}/contacts/${state.activeChat}`), { name: newName });
+                
+                // Обновление имени контакта в Firebase
+                update(ref(db, `users/${state.currentUser.phone}/contacts/${state.activeChat}`), { 
+                    name: newName 
+                });
+                
                 saveState();
                 renderChatsList();
                 renderActiveChat();
@@ -1236,11 +1307,12 @@
         function deleteCurrentContact() {
             if(!state.activeChat) return;
             
-            // Удаление друга из Firebase
+            // Удаление контакта из Firebase
             remove(ref(db, `users/${state.currentUser.phone}/contacts/${state.activeChat}`));
             
             // Удаляем контакт из стейта
             delete state.chats[state.activeChat];
+            delete state.contacts[state.activeChat];
             delete state.userAvatars[state.activeChat];
             state.activeChat = null;
             saveState();
