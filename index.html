@@ -245,7 +245,7 @@
                         <!-- Объединенная кнопка загрузки -->
                         <div class="shrink-0">
                             <label class="flex items-center justify-center w-10 h-10 bg-neutral-800 rounded-full cursor-pointer hover:bg-neutral-700 transition text-neutral-400 hover:text-theme">
-                                <input type="file" id="chat-file-upload" class="hidden" accept="image/*,.pdf,.doc,.docx,.txt,.zip,.rar" onchange="handleFileUpload(event)">
+                                <input type="file" id="chat-file-upload" class="hidden" accept="image/*,audio/*,.mp3,.wav,.ogg,.m4a,.pdf,.doc,.docx,.txt,.zip,.rar" onchange="handleFileUpload(event)">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"></path></svg>
                             </label>
                         </div>
@@ -408,6 +408,14 @@
         const db = getDatabase(app);
         const STORAGE_KEY = 'framework_msg_v8';
 
+        // Конфигурация Cloudinary (unsigned upload — эти значения публичны и безопасны во фронтенде,
+        // но сам upload preset ДОЛЖЕН быть настроен на бэкенде Cloudinary с ограничением allowed_formats,
+        // иначе через него можно будет залить что угодно)
+        const CLOUDINARY_CLOUD_NAME = "dgrg5wra6";
+        const CLOUDINARY_UPLOAD_PRESET = "my_unique_chat_preset_2026_x";
+        const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+        const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 МБ — лимит зависит от твоего тарифа Cloudinary
+
         // ===================== Утилиты =====================
 
         // Детерминированный ID комнаты для пары телефонов (не зависит от порядка)
@@ -482,7 +490,7 @@
                 openMyProfileModal, saveMyProfileChanges, applyTheme,
                 submitMessage, handleFileUpload, selectChat, backToChats,
                 autoResizeInput, cancelMessageAction, ctxAction,
-                handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadFileBase64,
+                handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadRemoteFile,
                 handleAvatarUpload, handleTypingInput, renderChatsList
             });
 
@@ -1057,6 +1065,7 @@
                 let lastTxt = "Нет сообщений";
                 if(last) {
                     if(last.type === 'image') lastTxt = "📷 Фотография";
+                    else if(last.type === 'audio') lastTxt = "🎵 Аудио";
                     else if(last.type === 'file') lastTxt = "📄 Файл";
                     else lastTxt = last.text || "";
                 }
@@ -1345,10 +1354,30 @@
                 }
 
                 if(msg.type === 'image') {
-                    content += `<img src="${msg.dataUrl}" class="max-w-[200px] sm:max-w-xs rounded-lg shadow-sm" />`;
+                    content += `
+                        <div class="relative group">
+                            <img src="${msg.dataUrl}" class="max-w-[200px] sm:max-w-xs rounded-lg shadow-sm block" />
+                            <button onclick="downloadRemoteFile('${msg.dataUrl}', '${escapeHtml(msg.filename || 'photo.jpg')}')"
+                                    class="absolute bottom-2 right-2 w-8 h-8 bg-black/60 hover:bg-black/80 rounded-full flex items-center justify-center text-white transition backdrop-blur-sm"
+                                    title="Скачать фото">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                            </button>
+                        </div>`;
+                } else if (msg.type === 'audio') {
+                    content += `
+                        <div class="flex flex-col space-y-1.5 min-w-[220px]">
+                            <div class="flex items-center space-x-2">
+                                <span class="text-lg">🎵</span>
+                                <span class="text-xs font-bold truncate max-w-[160px]">${escapeHtml(msg.filename || 'Аудио')}</span>
+                            </div>
+                            <audio controls preload="metadata" class="w-full h-9" style="filter: ${isMe ? 'invert(0)' : 'invert(0.9) hue-rotate(180deg)'};">
+                                <source src="${msg.dataUrl}">
+                                Ваш браузер не поддерживает аудио.
+                            </audio>
+                        </div>`;
                 } else if (msg.type === 'file') {
                     content += `
-                        <div class="flex items-center space-x-3 bg-black/30 p-3 rounded-lg border border-black/20 cursor-pointer hover:bg-black/50 transition" onclick="downloadFileBase64('${msg.dataUrl}', '${msg.filename}')">
+                        <div class="flex items-center space-x-3 bg-black/30 p-3 rounded-lg border border-black/20 cursor-pointer hover:bg-black/50 transition" onclick="downloadRemoteFile('${msg.dataUrl}', '${escapeHtml(msg.filename || 'file')}')">
                             <span class="text-3xl">📄</span>
                             <div class="flex flex-col max-w-[150px]">
                                 <span class="font-bold text-sm truncate">${escapeHtml(msg.filename || 'Файл')}</span>
@@ -1392,13 +1421,28 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function downloadFileBase64(dataUrl, filename) {
-            const a = document.createElement('a');
-            a.href = dataUrl;
-            a.download = filename || 'downloaded_file';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
+        // Скачивание файлов с Cloudinary (или любого внешнего URL).
+        // Прямой <a download> на чужом домене браузер часто просто открывает в новой вкладке
+        // вместо скачивания, поэтому тянем как blob и скачиваем локальный URL.
+        async function downloadRemoteFile(url, filename) {
+            try {
+                showToast("Скачивание...");
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('fetch failed');
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename || 'downloaded_file';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            } catch (e) {
+                // Фолбэк — открыть в новой вкладке, если fetch не сработал (например, CORS)
+                window.open(url, '_blank');
+            }
         }
 
         // --- ВВОД И ОТПРАВКА ---
@@ -1408,30 +1452,112 @@
             el.style.height = (el.scrollHeight) + 'px';
         }
 
+        function detectMessageType(file) {
+            if (file.type.startsWith('image/')) return 'image';
+            if (file.type.startsWith('audio/')) return 'audio';
+            return 'file';
+        }
+
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
 
-            const isImage = file.type.startsWith('image/');
-            const type = isImage ? 'image' : 'file';
-
-            if(file.size > 5 * 1024 * 1024) {
-                showToast("Файл слишком большой! Максимум 5 МБ для демо.", "error");
+            if(file.size > MAX_FILE_SIZE_BYTES) {
+                showToast(`Файл слишком большой! Максимум ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} МБ.`, "error");
                 event.target.value = '';
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const dataUrl = e.target.result;
-                pushMessageToStateAndDb({
-                    type: type,
-                    dataUrl: dataUrl,
-                    filename: file.name
-                });
-            };
-            reader.readAsDataURL(file);
+            const type = detectMessageType(file);
+            uploadFileToCloudinary(file, type);
             event.target.value = '';
+        }
+
+        // Прямая загрузка в Cloudinary через unsigned preset, с прогресс-тостом.
+        // XMLHttpRequest используется вместо fetch, потому что только он даёт upload progress event.
+        function uploadFileToCloudinary(file, type) {
+            const progressToastId = showProgressToast(`Загрузка: ${file.name}`);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', CLOUDINARY_UPLOAD_URL, true);
+
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    updateProgressToast(progressToastId, percent);
+                }
+            };
+
+            xhr.onload = () => {
+                removeProgressToast(progressToastId);
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const data = JSON.parse(xhr.responseText);
+                        pushMessageToStateAndDb({
+                            type: type,
+                            dataUrl: data.secure_url,
+                            filename: file.name,
+                            fileSize: file.size
+                        });
+                    } catch (e) {
+                        showToast("Ошибка обработки ответа сервера", "error");
+                    }
+                } else {
+                    let errMsg = "Ошибка загрузки файла";
+                    try {
+                        const errData = JSON.parse(xhr.responseText);
+                        if (errData.error && errData.error.message) errMsg = errData.error.message;
+                    } catch(e) {}
+                    showToast(errMsg, "error");
+                }
+            };
+
+            xhr.onerror = () => {
+                removeProgressToast(progressToastId);
+                showToast("Ошибка сети при загрузке файла", "error");
+            };
+
+            xhr.send(formData);
+        }
+
+        // --- ПРОГРЕСС-ТОСТ ДЛЯ ЗАГРУЗКИ ---
+        function showProgressToast(label) {
+            const container = document.getElementById('toast-container');
+            const id = 'progress-' + Date.now();
+            const el = document.createElement('div');
+            el.id = id;
+            el.className = "bg-neutral-800 border border-neutral-700 text-white px-4 py-2.5 rounded-2xl font-bold text-xs shadow-xl fade-in min-w-[220px] pointer-events-auto";
+            el.innerHTML = `
+                <div class="flex justify-between mb-1.5">
+                    <span class="truncate max-w-[160px]">${escapeHtml(label)}</span>
+                    <span class="progress-percent shrink-0 ml-2 text-theme">0%</span>
+                </div>
+                <div class="w-full h-1.5 bg-neutral-700 rounded-full overflow-hidden">
+                    <div class="progress-bar-fill h-full bg-theme transition-all duration-150" style="width: 0%"></div>
+                </div>
+            `;
+            container.appendChild(el);
+            return id;
+        }
+
+        function updateProgressToast(id, percent) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            const fill = el.querySelector('.progress-bar-fill');
+            const label = el.querySelector('.progress-percent');
+            if (fill) fill.style.width = percent + '%';
+            if (label) label.innerText = percent + '%';
+        }
+
+        function removeProgressToast(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.opacity = '0';
+            setTimeout(() => el.remove(), 300);
         }
 
         function submitMessage() {
