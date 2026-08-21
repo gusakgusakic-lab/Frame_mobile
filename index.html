@@ -347,6 +347,19 @@
                             <button onclick="playerNext()" class="w-8 h-8 flex items-center justify-center text-neutral-300 hover:text-white transition rounded-full hover:bg-neutral-800" title="Следующий трек">
                                 <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"></path></svg>
                             </button>
+                            <div class="relative">
+                                <button id="player-volume-btn" onclick="toggleVolumePopup(event)" class="w-8 h-8 flex items-center justify-center text-neutral-300 hover:text-white transition rounded-full hover:bg-neutral-800 ml-1" title="Громкость">
+                                    <svg id="player-volume-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path></svg>
+                                </button>
+                                <div id="volume-popup" class="hidden absolute bottom-full right-0 mb-2 bg-neutral-900 border border-neutral-700 rounded-xl p-3 shadow-2xl w-36">
+                                    <div class="flex items-center space-x-2">
+                                        <span id="player-volume-value" class="text-[10px] text-neutral-400 font-mono w-7 shrink-0">100%</span>
+                                        <input type="range" id="player-volume-slider" min="0" max="100" value="100"
+                                               oninput="setPlayerVolume(this.value)"
+                                               class="w-full accent-theme cursor-pointer h-1.5">
+                                    </div>
+                                </div>
+                            </div>
                             <button onclick="closePlayer()" class="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-white transition rounded-full hover:bg-neutral-800 ml-1" title="Закрыть плеер">✕</button>
                         </div>
                     </div>
@@ -691,7 +704,8 @@
                 autoResizeInput, cancelMessageAction, ctxAction,
                 handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadRemoteFile,
                 handleAvatarUpload, handleTypingInput, renderChatsList,
-                playerTogglePlay, playerNext, playerPrev, playAudioMessage, seekPlayer, closePlayer
+                playerTogglePlay, playerNext, playerPrev, playAudioMessage, seekPlayer, closePlayer,
+                toggleVolumePopup, setPlayerVolume
             });
 
             // Закрытие контекстного меню при клике вне
@@ -1771,6 +1785,7 @@
 
             const audio = globalAudioEl();
             audio.src = track.dataUrl;
+            audio.volume = getSavedVolume() / 100;
             audio.play().then(() => {
                 playerState.isPlaying = true;
                 updatePlayerUI();
@@ -1828,6 +1843,63 @@
             const rect = track.getBoundingClientRect();
             const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
             audio.currentTime = ratio * audio.duration;
+        }
+
+        // --- ГРОМКОСТЬ ПЛЕЕРА ---
+        // Уровень громкости хранится в localStorage отдельно от основного state — это чисто
+        // настройка воспроизведения, не имеет смысла синхронизировать между устройствами.
+        const VOLUME_STORAGE_KEY = 'framework_msg_volume';
+
+        function getSavedVolume() {
+            const raw = localStorage.getItem(VOLUME_STORAGE_KEY);
+            const val = raw !== null ? parseInt(raw, 10) : 100;
+            return isNaN(val) ? 100 : Math.min(100, Math.max(0, val));
+        }
+
+        function setPlayerVolume(value) {
+            const percent = Math.min(100, Math.max(0, parseInt(value, 10)));
+            const audio = globalAudioEl();
+            audio.volume = percent / 100;
+            localStorage.setItem(VOLUME_STORAGE_KEY, String(percent));
+
+            const slider = document.getElementById('player-volume-slider');
+            const valueLabel = document.getElementById('player-volume-value');
+            if (slider) slider.value = percent;
+            if (valueLabel) valueLabel.innerText = percent + '%';
+
+            updateVolumeIcon(percent);
+        }
+
+        function updateVolumeIcon(percent) {
+            const icon = document.getElementById('player-volume-icon');
+            if (!icon) return;
+            if (percent === 0) {
+                // Иконка "звук выключен"
+                icon.innerHTML = '<path d="M16.5 12A4.5 4.5 0 0014 8v1.5a3 3 0 010 5H14V16a4.5 4.5 0 002.5-4zM19 12a7 7 0 00-7-7v1.5a5.5 5.5 0 010 11V19a7 7 0 007-7z" opacity="0"></path><path d="M3 10v4h4l5 5V5L7 10H3z"></path><path d="M16.5 4.5L4.5 16.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"></path>';
+            } else if (percent < 50) {
+                // Иконка "тихо"
+                icon.innerHTML = '<path d="M3 10v4h4l5 5V5L7 10H3zm10.5 2c0-1.1-.6-2.06-1.5-2.58v5.15c.9-.51 1.5-1.47 1.5-2.57z"></path>';
+            } else {
+                // Иконка "громко" (по умолчанию в разметке)
+                icon.innerHTML = '<path d="M3 10v4h4l5 5V5L7 10H3zm13.5 2c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"></path>';
+            }
+        }
+
+        function toggleVolumePopup(event) {
+            event.stopPropagation();
+            const popup = document.getElementById('volume-popup');
+            popup.classList.toggle('hidden');
+        }
+
+        // Закрываем попап громкости при клике вне него — навешивается один раз при старте
+        function setupVolumePopupOutsideClick() {
+            document.addEventListener('click', (e) => {
+                const popup = document.getElementById('volume-popup');
+                if (!popup || popup.classList.contains('hidden')) return;
+                if (!e.target.closest('#volume-popup') && !e.target.closest('#player-volume-btn')) {
+                    popup.classList.add('hidden');
+                }
+            });
         }
 
         function formatPlayerTime(seconds) {
@@ -1894,6 +1966,12 @@
                     updatePlayerUI();
                 }
             });
+
+            // Применяем сохранённую громкость сразу, до первого воспроизведения
+            const savedVolume = getSavedVolume();
+            audio.volume = savedVolume / 100;
+            setPlayerVolume(savedVolume);
+            setupVolumePopupOutsideClick();
         }
 
         // --- ВВОД И ОТПРАВКА ---
