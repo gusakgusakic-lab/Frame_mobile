@@ -361,6 +361,11 @@
                         <span class="text-sm text-neutral-500">Выделитесь в чатах</span>
                     </div>
                 </div>
+                <div class="pt-2 border-t border-neutral-800">
+                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">DeepSeek API ключ</label>
+                    <input type="password" id="my-profile-deepseek-key" placeholder="sk-..." class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
+                    <p class="text-[11px] text-neutral-500 mt-1.5">Хранится только в этом браузере. Нужен, чтобы писать боту DeepSeek в чате. Получить ключ: <a href="https://platform.deepseek.com/api_keys" target="_blank" class="text-theme underline">platform.deepseek.com</a></p>
+                </div>
             </div>
 
             <div class="flex space-x-3 pt-2 border-t border-neutral-800 mt-4">
@@ -415,6 +420,11 @@
         const CLOUDINARY_UPLOAD_PRESET = "my_unique_chat_preset_2026_x";
         const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
         const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 МБ — лимит зависит от твоего тарифа Cloudinary
+
+        // Виртуальный контакт DeepSeek. "Телефон" — фиктивный служебный ID, под него заводится
+        // обычный чат в state.chats, но сообщения не идут через Firebase — только напрямую в DeepSeek API.
+        const DEEPSEEK_BOT_PHONE = '__deepseek_bot__';
+        const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
 
         // ===================== Утилиты =====================
 
@@ -671,14 +681,29 @@
         }
 
         async function finishLogin() {
+            ensureDeepseekChatExists();
             showMainScreen();
             syncContactsFromFirebase();
             syncUserAvatars();
             setupPresence();
             Object.keys(state.chats).forEach(phone => {
+                if (phone === DEEPSEEK_BOT_PHONE) return; // бот не живёт в Firebase
                 listenToRoomMessages(phone);
                 listenToPresence(phone);
             });
+        }
+
+        // Заводит локальный чат с ботом DeepSeek, если его ещё нет.
+        // Это чисто локальная сущность — не синхронизируется через Firebase (у бота нет аккаунта).
+        function ensureDeepseekChatExists() {
+            if (!state.chats[DEEPSEEK_BOT_PHONE]) {
+                state.chats[DEEPSEEK_BOT_PHONE] = {
+                    name: 'DeepSeek',
+                    isBot: true,
+                    messages: []
+                };
+                saveState();
+            }
         }
 
         function logout() {
@@ -732,7 +757,7 @@
 
         function updateActiveChatOnlineDot() {
             const dot = document.getElementById('active-chat-online-dot');
-            if (!state.activeChat) { dot.classList.add('hidden'); return; }
+            if (!state.activeChat || state.activeChat === DEEPSEEK_BOT_PHONE) { dot.classList.add('hidden'); return; }
             const p = state.presence[state.activeChat];
             dot.classList.remove('hidden');
             if (p && p.online) {
@@ -745,6 +770,7 @@
         // --- ИНДИКАТОР "ПЕЧАТАЕТ..." ---
         function handleTypingInput() {
             if (!state.activeChat || !state.currentUser) return;
+            if (state.activeChat === DEEPSEEK_BOT_PHONE) return; // у бота нет своего typing-состояния в Firebase
             const now = Date.now();
             // Не спамим базу — обновляем статус "печатает" не чаще раза в 2 сек
             if (now - lastTypingSentAt > 2000) {
@@ -755,6 +781,7 @@
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 if (!state.activeChat || !state.currentUser) return;
+                if (state.activeChat === DEEPSEEK_BOT_PHONE) return;
                 const roomId = getChatRoomId(state.currentUser.phone, state.activeChat);
                 set(ref(db, `typing/${roomId}/${state.currentUser.phone}`), null);
             }, 2500);
@@ -763,6 +790,7 @@
         let typingListenerRoom = null;
         function listenToTyping(otherPhone) {
             if (!state.currentUser || !otherPhone) return;
+            if (otherPhone === DEEPSEEK_BOT_PHONE) return; // печать бота показывается локально, см. sendMessageToDeepseek
             const roomId = getChatRoomId(state.currentUser.phone, otherPhone);
             typingListenerRoom = roomId;
 
@@ -1077,12 +1105,15 @@
                 const textMuted = isActive ? 'text-black/70' : 'text-neutral-500';
 
                 const userAvatar = state.userAvatars[phone];
-                const avatarContent = userAvatar && userAvatar.startsWith('data:image')
-                    ? `<img src="${userAvatar}" class="w-full h-full object-cover rounded-full">`
-                    : '👤';
+                const isBot = phone === DEEPSEEK_BOT_PHONE;
+                const avatarContent = isBot
+                    ? '🤖'
+                    : (userAvatar && userAvatar.startsWith('data:image')
+                        ? `<img src="${userAvatar}" class="w-full h-full object-cover rounded-full">`
+                        : '👤');
 
                 const presence = state.presence[phone];
-                const isOnline = presence && presence.online;
+                const isOnline = isBot ? true : (presence && presence.online);
                 const onlineDotHtml = `<span class="online-dot ${isOnline ? '' : 'offline'}"></span>`;
 
                 // Статус-иконка для последнего сообщения, если оно моё
@@ -1309,12 +1340,21 @@
             noChat.classList.add('hidden');
 
             const chat = state.chats[state.activeChat];
+            const isBotChat = state.activeChat === DEEPSEEK_BOT_PHONE;
             headerName.innerText = chat.name;
-            headerPhone.innerText = state.activeChat;
-            updateActiveChatOnlineDot();
+            headerPhone.innerText = isBotChat ? 'AI Ассистент' : state.activeChat;
+
+            if (isBotChat) {
+                const dot = document.getElementById('active-chat-online-dot');
+                dot.classList.remove('hidden', 'offline');
+            } else {
+                updateActiveChatOnlineDot();
+            }
 
             const userAvatar = state.userAvatars[state.activeChat];
-            if (userAvatar && userAvatar.startsWith('data:image')) {
+            if (isBotChat) {
+                headerAvatar.innerHTML = '🤖';
+            } else if (userAvatar && userAvatar.startsWith('data:image')) {
                 headerAvatar.innerHTML = `<img src="${userAvatar}" class="w-full h-full object-cover">`;
             } else {
                 headerAvatar.innerHTML = '👤';
@@ -1385,7 +1425,7 @@
                             </div>
                         </div>`;
                 } else {
-                    content += `<p class="text-sm sm:text-base break-words leading-relaxed">${escapeHtml(msg.text)}</p>`;
+                    content += `<p class="text-sm sm:text-base break-words leading-relaxed">${escapeHtml(msg.text)}${msg.isStreaming ? '<span class="inline-block w-1.5 h-4 bg-current ml-0.5 align-middle animate-pulse"></span>' : ''}</p>`;
                 }
 
                 if(msg.isEdited) {
@@ -1461,6 +1501,12 @@
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
+
+            if(state.activeChat === DEEPSEEK_BOT_PHONE) {
+                showToast("DeepSeek принимает только текстовые сообщения", "error");
+                event.target.value = '';
+                return;
+            }
 
             if(file.size > MAX_FILE_SIZE_BYTES) {
                 showToast(`Файл слишком большой! Максимум ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} МБ.`, "error");
@@ -1566,6 +1612,13 @@
             const text = input.value.trim();
             if(!text) return;
 
+            // Чат с ботом DeepSeek не проходит через Firebase/typing — отдельная ветка
+            if (state.activeChat === DEEPSEEK_BOT_PHONE) {
+                sendMessageToDeepseek(text);
+                cancelMessageAction();
+                return;
+            }
+
             const roomId = getChatRoomId(state.currentUser.phone, state.activeChat);
 
             // Сбрасываем индикатор "печатает" сразу при отправке
@@ -1599,6 +1652,111 @@
             });
 
             cancelMessageAction();
+        }
+
+        // --- ЧАТ С БОТОМ DEEPSEEK (локальный, без Firebase) ---
+        function addLocalMessage(targetPhone, msgData) {
+            const chat = state.chats[targetPhone];
+            if (!chat) return null;
+            const newMsg = {
+                id: 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+                status: 'read',
+                ...msgData
+            };
+            chat.messages.push(newMsg);
+            saveState();
+            if (state.activeChat === targetPhone) renderActiveChat();
+            renderChatsList();
+            return newMsg;
+        }
+
+        async function sendMessageToDeepseek(text) {
+            const apiKey = getLocalDeepseekKey();
+            if (!apiKey) {
+                showToast("Сначала добавь свой DeepSeek API ключ в настройках профиля", "error");
+                openMyProfileModal();
+                return;
+            }
+
+            // Сообщение пользователя — сразу в UI
+            addLocalMessage(DEEPSEEK_BOT_PHONE, { type: 'text', text: text, sender: 'me' });
+
+            // Placeholder-сообщение бота, которое будем дополнять по мере получения токенов
+            const botMsg = addLocalMessage(DEEPSEEK_BOT_PHONE, { type: 'text', text: '', sender: 'them', isStreaming: true });
+
+            const indicator = document.getElementById('typing-indicator');
+            if (state.activeChat === DEEPSEEK_BOT_PHONE) indicator.classList.remove('hidden');
+
+            try {
+                const response = await fetch(DEEPSEEK_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`
+                    },
+                    body: JSON.stringify({
+                        model: 'deepseek-chat',
+                        // По решению: каждое сообщение отдельное, без памяти прошлого диалога
+                        messages: [{ role: 'user', content: text }],
+                        stream: true
+                    })
+                });
+
+                if (!response.ok) {
+                    let errText = `Ошибка API (${response.status})`;
+                    try {
+                        const errData = await response.json();
+                        if (errData.error && errData.error.message) errText = errData.error.message;
+                    } catch(e) {}
+                    throw new Error(errText);
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop(); // последняя (возможно неполная) строка остаётся в буфере
+
+                    for (const line of lines) {
+                        const trimmed = line.trim();
+                        if (!trimmed.startsWith('data:')) continue;
+                        const payload = trimmed.slice(5).trim();
+                        if (payload === '[DONE]') continue;
+
+                        try {
+                            const json = JSON.parse(payload);
+                            const delta = json.choices?.[0]?.delta?.content;
+                            if (delta) {
+                                botMsg.text += delta;
+                                if (state.activeChat === DEEPSEEK_BOT_PHONE) renderActiveChat();
+                            }
+                        } catch (e) {
+                            // неполный JSON-чанк, игнорируем
+                        }
+                    }
+                }
+
+                botMsg.isStreaming = false;
+                if (!botMsg.text) botMsg.text = "(пустой ответ)";
+                saveState();
+                renderChatsList();
+                if (state.activeChat === DEEPSEEK_BOT_PHONE) renderActiveChat();
+            } catch (e) {
+                botMsg.isStreaming = false;
+                botMsg.text = `⚠️ Ошибка: ${e.message}`;
+                saveState();
+                if (state.activeChat === DEEPSEEK_BOT_PHONE) renderActiveChat();
+                showToast("Не удалось получить ответ от DeepSeek", "error");
+            } finally {
+                if (state.activeChat === DEEPSEEK_BOT_PHONE) indicator.classList.add('hidden');
+            }
         }
 
         function pushMessageToStateAndDb(msgData, targetPhoneOverride) {
@@ -1645,6 +1803,10 @@
         function openFriendsModal() { document.getElementById('friend-modal').classList.remove('hidden'); }
         function toggleEditContactModal() {
             if(!state.activeChat) return;
+            if(state.activeChat === DEEPSEEK_BOT_PHONE) {
+                showToast("DeepSeek — встроенный бот, его нельзя переименовать или удалить", "error");
+                return;
+            }
             document.getElementById('edit-contact-name-input').value = state.chats[state.activeChat].name;
             document.getElementById('edit-contact-modal').classList.remove('hidden');
         }
@@ -1676,6 +1838,7 @@
             document.getElementById('my-profile-name-input').value = state.currentUser.nickname;
             document.getElementById('my-profile-password-input').value = "";
             document.getElementById('my-profile-ring-color').value = state.currentUser.ringColor || "#22c55e";
+            document.getElementById('my-profile-deepseek-key').value = getLocalDeepseekKey() || "";
 
             const preview = document.getElementById('profile-modal-avatar-preview');
             if (state.currentUser.avatar && state.currentUser.avatar.startsWith('data:image')) {
@@ -1685,6 +1848,22 @@
             }
 
             document.getElementById('my-profile-modal').classList.remove('hidden');
+        }
+
+        // Ключ DeepSeek хранится ОТДЕЛЬНО от остального state и НИКОГДА не уходит в Firebase —
+        // это личный секрет пользователя, привязанный к его номеру телефона в этом браузере.
+        function deepseekKeyStorageKey() {
+            return state.currentUser ? `deepseek_key_${state.currentUser.phone}` : null;
+        }
+        function getLocalDeepseekKey() {
+            const key = deepseekKeyStorageKey();
+            return key ? localStorage.getItem(key) : null;
+        }
+        function setLocalDeepseekKey(value) {
+            const key = deepseekKeyStorageKey();
+            if (!key) return;
+            if (value) localStorage.setItem(key, value);
+            else localStorage.removeItem(key);
         }
 
         // --- УПРАВЛЕНИЕ КОНТАКТАМИ ---
@@ -1761,10 +1940,12 @@
             const newNick = document.getElementById('my-profile-name-input').value.trim();
             const newPass = document.getElementById('my-profile-password-input').value.trim();
             const newColor = document.getElementById('my-profile-ring-color').value;
+            const newDeepseekKey = document.getElementById('my-profile-deepseek-key').value.trim();
 
             if(newNick) state.currentUser.nickname = newNick;
             if(newPass) state.currentUser.passwordHash = await hashPassword(newPass);
             state.currentUser.ringColor = newColor;
+            setLocalDeepseekKey(newDeepseekKey);
 
             update(ref(db, 'users/' + state.currentUser.phone), {
                 nickname: state.currentUser.nickname,
