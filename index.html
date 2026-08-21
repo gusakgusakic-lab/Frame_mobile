@@ -7,14 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         :root {
-            /* Базовые цвета. Изменяются через JS ползунком */
-            --theme-color: #f97316; /* Оранжевый (Tailwind orange-500) */
+            /* Базовые цвета. Изменяются через выбор темы или color picker в настройках */
+            --theme-color: #f97316; /* Оранжевый (Tailwind orange-500) по умолчанию */
             --theme-hover: #ea580c; /* orange-600 */
             --theme-bg-dark: #000000;
             --theme-bg-panel: #171717; /* neutral-900 */
             --theme-bg-chat: #0a0a0a;  /* neutral-950 */
             --theme-text: #ffffff;
             --user-ring: #22c55e;      /* Цвет кольца онлайна (green-500 по умолчанию) */
+            --msg-font: system-ui, -apple-system, sans-serif; /* Шрифт сообщений, выбирается в настройках */
         }
 
         body {
@@ -24,6 +25,8 @@
             overflow: hidden; /* Запрет скролла всей страницы */
             touch-action: manipulation; /* Улучшение тапов на мобильных */
         }
+
+        .font-messages { font-family: var(--msg-font); }
 
         /* Утилиты для темы */
         .bg-theme { background-color: var(--theme-color); }
@@ -81,6 +84,87 @@
             border: 2px solid var(--theme-bg-panel);
         }
         .online-dot.offline { background: #525252; }
+
+        /* Табы настроек */
+        .settings-tab {
+            flex: 1;
+            padding: 0.65rem 0;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.8rem;
+            border-radius: 0.75rem;
+            color: #a3a3a3;
+            transition: all 0.15s ease;
+            cursor: pointer;
+        }
+        .settings-tab.active {
+            background: var(--theme-color);
+            color: #000;
+        }
+
+        /* Свотчи готовых тем */
+        .theme-swatch {
+            width: 36px;
+            height: 36px;
+            border-radius: 9999px;
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: transform 0.15s ease, border-color 0.15s ease;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .theme-swatch:hover { transform: scale(1.08); }
+        .theme-swatch.active { border-color: #ffffff; }
+        .theme-swatch.active::after {
+            content: '✓';
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #000;
+            font-weight: 900;
+            font-size: 0.85rem;
+            text-shadow: 0 0 2px rgba(255,255,255,0.5);
+        }
+
+        /* Карточки выбора шрифта */
+        .font-option {
+            border: 1px solid #262626;
+            border-radius: 0.75rem;
+            padding: 0.65rem 0.85rem;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .font-option:hover { background: rgba(255,255,255,0.03); }
+        .font-option.active {
+            border-color: var(--theme-color);
+            background: rgba(255,255,255,0.04);
+        }
+
+        /* Мини-плеер музыки, прилипающий над панелью ввода */
+        #music-player-bar {
+            transform: translateY(0);
+            transition: transform 0.25s ease;
+        }
+        #music-player-bar.collapsed {
+            transform: translateY(100%);
+            position: absolute;
+            pointer-events: none;
+        }
+        .player-progress-track {
+            height: 4px;
+            border-radius: 9999px;
+            background: rgba(255,255,255,0.12);
+            cursor: pointer;
+            position: relative;
+        }
+        .player-progress-fill {
+            height: 100%;
+            border-radius: 9999px;
+            background: var(--theme-color);
+            width: 0%;
+        }
     </style>
 </head>
 <body class="h-screen w-screen flex flex-col">
@@ -238,6 +322,37 @@
                     <button onclick="cancelMessageAction()" class="text-neutral-400 hover:text-white p-1">✕</button>
                 </div>
 
+                <!-- Мини-плеер музыки (глобальный, играет даже при смене чата) -->
+                <div id="music-player-bar" class="collapsed hidden px-4 py-2.5 bg-black border-t border-neutral-800 shrink-0">
+                    <div class="flex items-center space-x-3 max-w-4xl mx-auto">
+                        <span class="text-xl shrink-0">🎵</span>
+                        <div class="flex-1 min-w-0">
+                            <p id="player-track-name" class="text-xs font-bold text-white truncate">Трек</p>
+                            <div class="flex items-center space-x-2 mt-1.5">
+                                <span id="player-time-current" class="text-[10px] text-neutral-500 font-mono w-9 shrink-0">0:00</span>
+                                <div id="player-progress-track" class="player-progress-track flex-1" onclick="seekPlayer(event)">
+                                    <div id="player-progress-fill" class="player-progress-fill"></div>
+                                </div>
+                                <span id="player-time-duration" class="text-[10px] text-neutral-500 font-mono w-9 shrink-0 text-right">0:00</span>
+                            </div>
+                        </div>
+                        <div class="flex items-center space-x-1 shrink-0">
+                            <button onclick="playerPrev()" class="w-8 h-8 flex items-center justify-center text-neutral-300 hover:text-white transition rounded-full hover:bg-neutral-800" title="Предыдущий трек">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"></path></svg>
+                            </button>
+                            <button id="player-play-pause-btn" onclick="playerTogglePlay()" class="w-9 h-9 flex items-center justify-center bg-theme text-black rounded-full hover:bg-theme-hover transition active:scale-95" title="Пауза/Плей">
+                                <svg id="player-play-icon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+                                <svg id="player-pause-icon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"></path></svg>
+                            </button>
+                            <button onclick="playerNext()" class="w-8 h-8 flex items-center justify-center text-neutral-300 hover:text-white transition rounded-full hover:bg-neutral-800" title="Следующий трек">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 6l8.5 6L6 18z"></path></svg>
+                            </button>
+                            <button onclick="closePlayer()" class="w-8 h-8 flex items-center justify-center text-neutral-500 hover:text-white transition rounded-full hover:bg-neutral-800 ml-1" title="Закрыть плеер">✕</button>
+                        </div>
+                    </div>
+                </div>
+                <audio id="global-audio-player" class="hidden"></audio>
+
                 <!-- Панель ввода с мобильной оптимизацией -->
                 <div class="p-2 sm:p-3 bg-[var(--theme-bg-panel)] shrink-0 border-t border-neutral-800 relative z-20 input-panel-mobile">
                     <div class="flex items-center space-x-2 max-w-4xl mx-auto">
@@ -315,60 +430,83 @@
         </div>
     </div>
 
-    <!-- Настройки профиля (Тема, Пароль, Ник) -->
+    <!-- Настройки профиля (Аккаунт / Персонализация) -->
     <div id="my-profile-modal" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden p-4 fade-in backdrop-blur-sm">
         <div class="bg-[var(--theme-bg-panel)] w-full max-w-md rounded-3xl border border-neutral-700 p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
-            <div class="flex justify-between items-center mb-6">
+            <div class="flex justify-between items-center mb-5">
                 <h3 class="text-white text-xl font-bold">Настройки</h3>
                 <button onclick="closeModal('my-profile-modal')" class="text-neutral-400 hover:text-white">✕</button>
             </div>
 
-            <!-- Аватарка -->
-            <div class="mb-6 flex flex-col items-center">
-                <div id="profile-modal-avatar-preview" class="w-20 h-20 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden border-2 border-theme cursor-pointer mb-3" onclick="document.getElementById('avatar-upload').click()">
-                    <span class="text-3xl">🦆</span>
-                </div>
-                <button onclick="document.getElementById('avatar-upload').click()" class="text-theme text-sm font-bold bg-neutral-800 px-4 py-2 rounded-xl hover:bg-neutral-700 transition active:scale-95">Загрузить фото</button>
-                <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
+            <!-- Табы -->
+            <div class="flex space-x-2 bg-black p-1.5 rounded-2xl border border-neutral-800 mb-6">
+                <div id="settings-tab-account" class="settings-tab active" onclick="switchSettingsTab('account')">Аккаунт</div>
+                <div id="settings-tab-personalization" class="settings-tab" onclick="switchSettingsTab('personalization')">Персонализация</div>
             </div>
 
-            <!-- Слайдер темы (Оранжевый -> Темно-Зеленый) -->
-            <div class="mb-6 bg-black p-4 rounded-xl border border-neutral-800">
-                <label class="block text-theme text-xs font-bold mb-3 uppercase tracking-wider flex justify-between">
-                    <span>Цвет темы</span>
-                    <span id="theme-value-text" class="text-neutral-400">Orange</span>
-                </label>
-                <input type="range" id="theme-slider" min="0" max="100" value="0" oninput="applyTheme(this.value)" class="w-full accent-theme cursor-pointer h-2 bg-neutral-800 rounded-lg appearance-none">
-                <div class="flex justify-between text-[10px] text-neutral-500 mt-2 font-bold uppercase">
-                    <span>Оранжевый</span>
-                    <span>Тёмно-зелёный</span>
+            <!-- Вкладка: Аккаунт -->
+            <div id="settings-panel-account">
+                <div class="mb-6 flex flex-col items-center">
+                    <div id="profile-modal-avatar-preview" class="w-20 h-20 rounded-full bg-neutral-800 flex items-center justify-center overflow-hidden border-2 border-theme cursor-pointer mb-3" onclick="document.getElementById('avatar-upload').click()">
+                        <span class="text-3xl">🦆</span>
+                    </div>
+                    <button onclick="document.getElementById('avatar-upload').click()" class="text-theme text-sm font-bold bg-neutral-800 px-4 py-2 rounded-xl hover:bg-neutral-700 transition active:scale-95">Загрузить фото</button>
+                    <input type="file" id="avatar-upload" accept="image/*" class="hidden" onchange="handleAvatarUpload(event)">
                 </div>
-            </div>
 
-            <div class="space-y-4 mb-6">
-                <div>
-                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Никнейм</label>
-                    <input type="text" id="my-profile-name-input" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
-                </div>
-                <div>
-                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Новый Пароль</label>
-                    <input type="password" id="my-profile-password-input" placeholder="Оставьте пустым для сохранения старого" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
-                </div>
-                <div>
-                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Цвет онлайна (кольцо)</label>
-                    <div class="flex items-center space-x-3">
-                        <input type="color" id="my-profile-ring-color" class="w-12 h-12 rounded bg-black cursor-pointer border-none">
-                        <span class="text-sm text-neutral-500">Выделитесь в чатах</span>
+                <div class="space-y-4 mb-2">
+                    <div>
+                        <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Никнейм</label>
+                        <input type="text" id="my-profile-name-input" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Новый Пароль</label>
+                        <input type="password" id="my-profile-password-input" placeholder="Оставьте пустым для сохранения старого" class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">Цвет онлайна (кольцо)</label>
+                        <div class="flex items-center space-x-3">
+                            <input type="color" id="my-profile-ring-color" class="w-12 h-12 rounded bg-black cursor-pointer border-none">
+                            <span class="text-sm text-neutral-500">Выделитесь в чатах</span>
+                        </div>
                     </div>
                 </div>
-                <div class="pt-2 border-t border-neutral-800">
-                    <label class="block text-neutral-400 text-xs font-bold mb-1 uppercase tracking-wider">DeepSeek API ключ</label>
-                    <input type="password" id="my-profile-deepseek-key" placeholder="sk-..." class="w-full p-3 rounded-xl bg-black text-white border border-neutral-700 focus:border-theme outline-none">
-                    <p class="text-[11px] text-neutral-500 mt-1.5">Хранится только в этом браузере. Нужен, чтобы писать боту DeepSeek в чате. Получить ключ: <a href="https://platform.deepseek.com/api_keys" target="_blank" class="text-theme underline">platform.deepseek.com</a></p>
+            </div>
+
+            <!-- Вкладка: Персонализация -->
+            <div id="settings-panel-personalization" class="hidden">
+                <!-- Готовые темы -->
+                <div class="mb-6 bg-black p-4 rounded-xl border border-neutral-800">
+                    <label class="block text-theme text-xs font-bold mb-3 uppercase tracking-wider">Готовые темы</label>
+                    <div id="theme-presets-row" class="flex flex-wrap gap-3">
+                        <!-- Заполняется JS -->
+                    </div>
+                </div>
+
+                <!-- Свой цвет -->
+                <div class="mb-6 bg-black p-4 rounded-xl border border-neutral-800">
+                    <label class="block text-theme text-xs font-bold mb-3 uppercase tracking-wider">Свой цвет</label>
+                    <div class="flex items-center space-x-3">
+                        <input type="color" id="custom-theme-color-picker" value="#f97316" oninput="applyCustomThemeColor(this.value)" class="w-14 h-14 rounded-xl bg-black cursor-pointer border border-neutral-700">
+                        <div class="flex-1">
+                            <input type="text" id="custom-theme-hex-input" placeholder="#f97316" maxlength="7"
+                                   oninput="applyCustomThemeColorFromHex(this.value)"
+                                   class="w-full p-2.5 rounded-lg bg-neutral-900 text-white border border-neutral-700 focus:border-theme outline-none text-sm font-mono">
+                            <p class="text-[11px] text-neutral-500 mt-1">Любой HEX-цвет для акцентов интерфейса</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Шрифт сообщений -->
+                <div class="mb-2 bg-black p-4 rounded-xl border border-neutral-800">
+                    <label class="block text-theme text-xs font-bold mb-3 uppercase tracking-wider">Шрифт сообщений</label>
+                    <div id="font-options-list" class="space-y-2">
+                        <!-- Заполняется JS -->
+                    </div>
                 </div>
             </div>
 
-            <div class="flex space-x-3 pt-2 border-t border-neutral-800 mt-4">
+            <div class="flex space-x-3 pt-4 border-t border-neutral-800 mt-4">
                 <button onclick="saveMyProfileChanges()" class="flex-1 py-3 bg-theme text-black font-bold rounded-xl transition">Сохранить</button>
                 <button onclick="logout()" class="px-4 py-3 bg-neutral-800 text-red-400 border border-red-900/30 rounded-xl hover:bg-neutral-700 transition">Выйти</button>
             </div>
@@ -421,11 +559,6 @@
         const CLOUDINARY_UPLOAD_URL = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
         const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 МБ — лимит зависит от твоего тарифа Cloudinary
 
-        // Виртуальный контакт DeepSeek. "Телефон" — фиктивный служебный ID, под него заводится
-        // обычный чат в state.chats, но сообщения не идут через Firebase — только напрямую в DeepSeek API.
-        const DEEPSEEK_BOT_PHONE = '__deepseek_bot__';
-        const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
-
         // ===================== Утилиты =====================
 
         // Детерминированный ID комнаты для пары телефонов (не зависит от порядка)
@@ -443,12 +576,48 @@
             return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
         }
 
+        // Готовые темы-акценты. Выбраны как самостоятельные насыщенные цвета, не переходящие
+        // в градиент "как у Gemini" — это одиночные плоские HEX-цвета, каждый со своим hover-тоном.
+        const THEME_PRESETS = [
+            { id: 'orange',  name: 'Оранжевая',  color: '#f97316', hover: '#ea580c' },
+            { id: 'blue',    name: 'Синяя',       color: '#0ea5e9', hover: '#0284c7' },
+            { id: 'indigo',  name: 'Индиго',      color: '#6366f1', hover: '#4f46e5' },
+            { id: 'emerald', name: 'Изумрудная',  color: '#10b981', hover: '#059669' },
+            { id: 'rose',    name: 'Розовая',     color: '#f43f5e', hover: '#e11d48' },
+            { id: 'amber',   name: 'Янтарная',    color: '#f59e0b', hover: '#d97706' },
+            { id: 'violet',  name: 'Фиалковая',   color: '#8b5cf6', hover: '#7c3aed' },
+            { id: 'teal',    name: 'Бирюзовая',   color: '#14b8a6', hover: '#0d9488' }
+        ];
+
+        // Варианты шрифта для текста сообщений
+        const FONT_OPTIONS = [
+            { id: 'system',   name: 'Системный',    stack: "system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" },
+            { id: 'inter',    name: 'Inter',         stack: "'Inter', system-ui, sans-serif", googleFont: 'Inter:wght@400;500;600' },
+            { id: 'roboto',   name: 'Roboto',        stack: "'Roboto', system-ui, sans-serif", googleFont: 'Roboto:wght@400;500' },
+            { id: 'mono',     name: 'Моноширинный',  stack: "'JetBrains Mono', 'Courier New', monospace", googleFont: 'JetBrains+Mono:wght@400;500' },
+            { id: 'serif',    name: 'С засечками',   stack: "'Merriweather', Georgia, serif", googleFont: 'Merriweather:wght@400;700' },
+            { id: 'rounded',  name: 'Округлый',      stack: "'Nunito', system-ui, sans-serif", googleFont: 'Nunito:wght@400;600;700' }
+        ];
+
+        // Подгружаем Google Fonts лениво — только когда шрифт реально выбран,
+        // чтобы не тянуть лишний трафик при системном шрифте по умолчанию
+        let loadedGoogleFonts = new Set();
+        function ensureGoogleFontLoaded(fontOption) {
+            if (!fontOption.googleFont || loadedGoogleFonts.has(fontOption.id)) return;
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${fontOption.googleFont}&display=swap`;
+            document.head.appendChild(link);
+            loadedGoogleFonts.add(fontOption.id);
+        }
+
         // Глобальное состояние
         let state = {
             currentUser: null,
             chats: {},           // phone -> { name, messages: [] }
             activeChat: null,
-            themeSliderValue: 0,
+            accentColor: '#f97316',    // Акцентный цвет интерфейса (HEX)
+            messageFont: 'system',     // Ключ шрифта сообщений, см. FONT_OPTIONS
             userAvatars: {},     // Кэш аватарок пользователей
             contacts: {},        // Синхронизированные контакты
             presence: {}         // phone -> { online: bool, lastSeen: number }
@@ -472,6 +641,15 @@
         let typingTimeout = null;
         let lastTypingSentAt = 0;
 
+        // --- Состояние глобального музыкального плеера ---
+        // Плейлист = все аудио-сообщения ТЕКУЩЕГО открытого чата, в порядке появления.
+        let playerState = {
+            playlist: [],       // [{id, filename, dataUrl}]
+            currentIndex: -1,
+            isPlaying: false
+        };
+        const globalAudioEl = () => document.getElementById('global-audio-player');
+
         window.onload = initApp;
 
         function initApp() {
@@ -482,26 +660,38 @@
                     state.currentUser = parsed.currentUser || null;
                     state.chats = parsed.chats || {};
                     state.activeChat = parsed.activeChat || null;
-                    state.themeSliderValue = parsed.themeSliderValue || 0;
+                    // Миграция со старой версии (слайдер оранжевый->зелёный) на HEX-акцент
+                    if (parsed.accentColor) {
+                        state.accentColor = parsed.accentColor;
+                    } else if (typeof parsed.themeSliderValue === 'number') {
+                        const hue = 25 + ((140 - 25) * (parsed.themeSliderValue / 100));
+                        state.accentColor = hslToHex(hue, 90, 50);
+                    }
+                    state.messageFont = parsed.messageFont || 'system';
                     state.userAvatars = parsed.userAvatars || {};
                     state.contacts = parsed.contacts || {};
                     state.presence = parsed.presence || {};
                 } catch(e) { console.error("Parse error", e); }
             }
 
-            applyTheme(state.themeSliderValue);
-            document.getElementById('theme-slider').value = state.themeSliderValue;
+            applyAccentColor(state.accentColor);
+            applyMessageFont(state.messageFont);
+            renderThemePresets();
+            renderFontOptions();
+            setupGlobalAudioListeners();
 
             // Экспорт функций в global window для HTML onclick
             Object.assign(window, {
                 showAuthForm, hideAuthForm, submitAuth, logout,
                 openFriendsModal, closeModal, submitAddFriend,
                 toggleEditContactModal, saveContactChanges, deleteCurrentContact,
-                openMyProfileModal, saveMyProfileChanges, applyTheme,
+                openMyProfileModal, saveMyProfileChanges,
+                switchSettingsTab, applyCustomThemeColor, applyCustomThemeColorFromHex, selectThemePreset, selectFontOption,
                 submitMessage, handleFileUpload, selectChat, backToChats,
                 autoResizeInput, cancelMessageAction, ctxAction,
                 handleMsgPointerDown, handleMsgPointerUp, handleMsgPointerMove, downloadRemoteFile,
-                handleAvatarUpload, handleTypingInput, renderChatsList
+                handleAvatarUpload, handleTypingInput, renderChatsList,
+                playerTogglePlay, playerNext, playerPrev, playAudioMessage, seekPlayer, closePlayer
             });
 
             // Закрытие контекстного меню при клике вне
@@ -541,22 +731,124 @@
             localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
         }
 
-        // --- ТЕМА ---
-        function applyTheme(val) {
-            state.themeSliderValue = val;
-            // Оранжевый: HSL ~25. Зеленый: HSL ~140.
-            const hue = 25 + ((140 - 25) * (val / 100));
-            // Saturation 90%, Lightness 50%
-            document.documentElement.style.setProperty('--theme-color', `hsl(${hue}, 90%, 50%)`);
-            document.documentElement.style.setProperty('--theme-hover', `hsl(${hue}, 90%, 45%)`);
+        // --- ТЕМА (акцентный цвет) ---
 
-            const textEl = document.getElementById('theme-value-text');
-            if(textEl) {
-                if(val < 30) textEl.innerText = 'Оранжевый';
-                else if (val < 70) textEl.innerText = 'Оливковый';
-                else textEl.innerText = 'Тёмно-зелёный';
-            }
+        // hue [0-360], sat/light [0-100] -> "#rrggbb". Нужно только для миграции старого слайдера.
+        function hslToHex(h, s, l) {
+            s /= 100; l /= 100;
+            const k = n => (n + h / 30) % 12;
+            const a = s * Math.min(l, 1 - l);
+            const f = n => l - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+            const toHex = x => Math.round(255 * x).toString(16).padStart(2, '0');
+            return `#${toHex(f(0))}${toHex(f(8))}${toHex(f(4))}`;
+        }
+
+        // Затемняет HEX-цвет на заданный процент — используется для автоматического hover-тона
+        // у произвольного (не пресетного) цвета из color picker.
+        function darkenHex(hex, percent) {
+            const num = parseInt(hex.replace('#', ''), 16);
+            let r = (num >> 16) - Math.round(255 * percent);
+            let g = ((num >> 8) & 0x00FF) - Math.round(255 * percent);
+            let b = (num & 0x0000FF) - Math.round(255 * percent);
+            r = Math.max(0, r); g = Math.max(0, g); b = Math.max(0, b);
+            return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+        }
+
+        function applyAccentColor(hex, hoverHex) {
+            state.accentColor = hex;
+            document.documentElement.style.setProperty('--theme-color', hex);
+            document.documentElement.style.setProperty('--theme-hover', hoverHex || darkenHex(hex, 0.12));
             saveState();
+        }
+
+        function applyCustomThemeColor(hex) {
+            applyAccentColor(hex);
+            document.getElementById('custom-theme-hex-input').value = hex;
+            renderThemePresets(); // снимаем подсветку с пресетов, если был выбран свой цвет
+        }
+
+        function applyCustomThemeColorFromHex(value) {
+            const hex = value.trim();
+            if (/^#[0-9a-fA-F]{6}$/.test(hex)) {
+                document.getElementById('custom-theme-color-picker').value = hex;
+                applyAccentColor(hex);
+                renderThemePresets();
+            }
+        }
+
+        function selectThemePreset(presetId) {
+            const preset = THEME_PRESETS.find(p => p.id === presetId);
+            if (!preset) return;
+            applyAccentColor(preset.color, preset.hover);
+            document.getElementById('custom-theme-color-picker').value = preset.color;
+            document.getElementById('custom-theme-hex-input').value = preset.color;
+            renderThemePresets();
+        }
+
+        function renderThemePresets() {
+            const row = document.getElementById('theme-presets-row');
+            if (!row) return;
+            row.innerHTML = THEME_PRESETS.map(preset => {
+                const isActive = state.accentColor.toLowerCase() === preset.color.toLowerCase();
+                return `
+                    <button onclick="selectThemePreset('${preset.id}')"
+                            class="group flex flex-col items-center space-y-1.5 focus:outline-none"
+                            title="${preset.name}">
+                        <span class="w-10 h-10 rounded-full block transition-transform group-active:scale-90 ${isActive ? 'ring-2 ring-offset-2 ring-offset-black ring-white' : ''}"
+                              style="background-color: ${preset.color};"></span>
+                        <span class="text-[10px] font-bold ${isActive ? 'text-white' : 'text-neutral-500'} whitespace-nowrap">${preset.name}</span>
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // --- ШРИФТ СООБЩЕНИЙ ---
+        function applyMessageFont(fontId) {
+            const font = FONT_OPTIONS.find(f => f.id === fontId) || FONT_OPTIONS[0];
+            state.messageFont = font.id;
+            ensureGoogleFontLoaded(font);
+            document.documentElement.style.setProperty('--msg-font', font.stack);
+            saveState();
+        }
+
+        function selectFontOption(fontId) {
+            applyMessageFont(fontId);
+            renderFontOptions();
+        }
+
+        function renderFontOptions() {
+            const list = document.getElementById('font-options-list');
+            if (!list) return;
+            list.innerHTML = FONT_OPTIONS.map(font => {
+                const isActive = state.messageFont === font.id;
+                return `
+                    <button onclick="selectFontOption('${font.id}')"
+                            class="w-full flex items-center justify-between p-3 rounded-xl border transition text-left ${isActive ? 'border-theme bg-theme/10' : 'border-neutral-800 hover:border-neutral-700'}">
+                        <span style="font-family: ${font.stack};" class="text-white text-sm">${font.name} — Пример текста Аа</span>
+                        ${isActive ? '<span class="text-theme text-lg shrink-0 ml-2">✓</span>' : ''}
+                    </button>
+                `;
+            }).join('');
+        }
+
+        // --- ТАБЫ НАСТРОЕК ---
+        function switchSettingsTab(tab) {
+            const tabAccount = document.getElementById('settings-tab-account');
+            const tabPersonalization = document.getElementById('settings-tab-personalization');
+            const panelAccount = document.getElementById('settings-panel-account');
+            const panelPersonalization = document.getElementById('settings-panel-personalization');
+
+            if (tab === 'account') {
+                tabAccount.classList.add('active');
+                tabPersonalization.classList.remove('active');
+                panelAccount.classList.remove('hidden');
+                panelPersonalization.classList.add('hidden');
+            } else {
+                tabPersonalization.classList.add('active');
+                tabAccount.classList.remove('active');
+                panelPersonalization.classList.remove('hidden');
+                panelAccount.classList.add('hidden');
+            }
         }
 
         // --- УВЕДОМЛЕНИЯ ---
@@ -681,29 +973,14 @@
         }
 
         async function finishLogin() {
-            ensureDeepseekChatExists();
             showMainScreen();
             syncContactsFromFirebase();
             syncUserAvatars();
             setupPresence();
             Object.keys(state.chats).forEach(phone => {
-                if (phone === DEEPSEEK_BOT_PHONE) return; // бот не живёт в Firebase
                 listenToRoomMessages(phone);
                 listenToPresence(phone);
             });
-        }
-
-        // Заводит локальный чат с ботом DeepSeek, если его ещё нет.
-        // Это чисто локальная сущность — не синхронизируется через Firebase (у бота нет аккаунта).
-        function ensureDeepseekChatExists() {
-            if (!state.chats[DEEPSEEK_BOT_PHONE]) {
-                state.chats[DEEPSEEK_BOT_PHONE] = {
-                    name: 'DeepSeek',
-                    isBot: true,
-                    messages: []
-                };
-                saveState();
-            }
         }
 
         function logout() {
@@ -757,7 +1034,7 @@
 
         function updateActiveChatOnlineDot() {
             const dot = document.getElementById('active-chat-online-dot');
-            if (!state.activeChat || state.activeChat === DEEPSEEK_BOT_PHONE) { dot.classList.add('hidden'); return; }
+            if (!state.activeChat) { dot.classList.add('hidden'); return; }
             const p = state.presence[state.activeChat];
             dot.classList.remove('hidden');
             if (p && p.online) {
@@ -770,7 +1047,6 @@
         // --- ИНДИКАТОР "ПЕЧАТАЕТ..." ---
         function handleTypingInput() {
             if (!state.activeChat || !state.currentUser) return;
-            if (state.activeChat === DEEPSEEK_BOT_PHONE) return; // у бота нет своего typing-состояния в Firebase
             const now = Date.now();
             // Не спамим базу — обновляем статус "печатает" не чаще раза в 2 сек
             if (now - lastTypingSentAt > 2000) {
@@ -781,7 +1057,6 @@
             clearTimeout(typingTimeout);
             typingTimeout = setTimeout(() => {
                 if (!state.activeChat || !state.currentUser) return;
-                if (state.activeChat === DEEPSEEK_BOT_PHONE) return;
                 const roomId = getChatRoomId(state.currentUser.phone, state.activeChat);
                 set(ref(db, `typing/${roomId}/${state.currentUser.phone}`), null);
             }, 2500);
@@ -790,7 +1065,6 @@
         let typingListenerRoom = null;
         function listenToTyping(otherPhone) {
             if (!state.currentUser || !otherPhone) return;
-            if (otherPhone === DEEPSEEK_BOT_PHONE) return; // печать бота показывается локально, см. sendMessageToDeepseek
             const roomId = getChatRoomId(state.currentUser.phone, otherPhone);
             typingListenerRoom = roomId;
 
@@ -1105,15 +1379,12 @@
                 const textMuted = isActive ? 'text-black/70' : 'text-neutral-500';
 
                 const userAvatar = state.userAvatars[phone];
-                const isBot = phone === DEEPSEEK_BOT_PHONE;
-                const avatarContent = isBot
-                    ? '🤖'
-                    : (userAvatar && userAvatar.startsWith('data:image')
-                        ? `<img src="${userAvatar}" class="w-full h-full object-cover rounded-full">`
-                        : '👤');
+                const avatarContent = userAvatar && userAvatar.startsWith('data:image')
+                    ? `<img src="${userAvatar}" class="w-full h-full object-cover rounded-full">`
+                    : '👤';
 
                 const presence = state.presence[phone];
-                const isOnline = isBot ? true : (presence && presence.online);
+                const isOnline = presence && presence.online;
                 const onlineDotHtml = `<span class="online-dot ${isOnline ? '' : 'offline'}"></span>`;
 
                 // Статус-иконка для последнего сообщения, если оно моё
@@ -1340,21 +1611,12 @@
             noChat.classList.add('hidden');
 
             const chat = state.chats[state.activeChat];
-            const isBotChat = state.activeChat === DEEPSEEK_BOT_PHONE;
             headerName.innerText = chat.name;
-            headerPhone.innerText = isBotChat ? 'AI Ассистент' : state.activeChat;
-
-            if (isBotChat) {
-                const dot = document.getElementById('active-chat-online-dot');
-                dot.classList.remove('hidden', 'offline');
-            } else {
-                updateActiveChatOnlineDot();
-            }
+            headerPhone.innerText = state.activeChat;
+            updateActiveChatOnlineDot();
 
             const userAvatar = state.userAvatars[state.activeChat];
-            if (isBotChat) {
-                headerAvatar.innerHTML = '🤖';
-            } else if (userAvatar && userAvatar.startsWith('data:image')) {
+            if (userAvatar && userAvatar.startsWith('data:image')) {
                 headerAvatar.innerHTML = `<img src="${userAvatar}" class="w-full h-full object-cover">`;
             } else {
                 headerAvatar.innerHTML = '👤';
@@ -1405,15 +1667,14 @@
                         </div>`;
                 } else if (msg.type === 'audio') {
                     content += `
-                        <div class="flex flex-col space-y-1.5 min-w-[220px]">
-                            <div class="flex items-center space-x-2">
-                                <span class="text-lg">🎵</span>
-                                <span class="text-xs font-bold truncate max-w-[160px]">${escapeHtml(msg.filename || 'Аудио')}</span>
+                        <div class="flex items-center space-x-3 min-w-[220px] cursor-pointer group" onclick="playAudioMessage('${msg.id}')">
+                            <div class="w-10 h-10 rounded-full ${isMe ? 'bg-black/20' : 'bg-theme'} flex items-center justify-center shrink-0 transition group-active:scale-90">
+                                <svg class="w-4 h-4 ${isMe ? 'text-black' : 'text-black'} audio-msg-play-icon" data-msg-id="${msg.id}" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
                             </div>
-                            <audio controls preload="metadata" class="w-full h-9" style="filter: ${isMe ? 'invert(0)' : 'invert(0.9) hue-rotate(180deg)'};">
-                                <source src="${msg.dataUrl}">
-                                Ваш браузер не поддерживает аудио.
-                            </audio>
+                            <div class="flex flex-col min-w-0 flex-1">
+                                <span class="text-xs font-bold truncate">${escapeHtml(msg.filename || 'Аудио')}</span>
+                                <span class="text-[10px] opacity-60">Нажмите, чтобы включить</span>
+                            </div>
                         </div>`;
                 } else if (msg.type === 'file') {
                     content += `
@@ -1425,7 +1686,7 @@
                             </div>
                         </div>`;
                 } else {
-                    content += `<p class="text-sm sm:text-base break-words leading-relaxed">${escapeHtml(msg.text)}${msg.isStreaming ? '<span class="inline-block w-1.5 h-4 bg-current ml-0.5 align-middle animate-pulse"></span>' : ''}</p>`;
+                    content += `<p class="text-sm sm:text-base break-words leading-relaxed">${escapeHtml(msg.text)}</p>`;
                 }
 
                 if(msg.isEdited) {
@@ -1485,6 +1746,156 @@
             }
         }
 
+        // --- ГЛОБАЛЬНЫЙ МУЗЫКАЛЬНЫЙ ПЛЕЕР ---
+        // Плейлист пересобирается из аудио-сообщений активного чата каждый раз, когда запускается трек.
+
+        function buildPlaylistFromActiveChat() {
+            const chat = state.chats[state.activeChat];
+            if (!chat) return [];
+            return chat.messages
+                .filter(m => m.type === 'audio' && !m.isDeleted)
+                .map(m => ({ id: m.id, filename: m.filename || 'Аудио', dataUrl: m.dataUrl }));
+        }
+
+        function playAudioMessage(msgId) {
+            playerState.playlist = buildPlaylistFromActiveChat();
+            const idx = playerState.playlist.findIndex(t => t.id === msgId);
+            if (idx === -1) return;
+            loadAndPlayTrack(idx);
+        }
+
+        function loadAndPlayTrack(index) {
+            if (index < 0 || index >= playerState.playlist.length) return;
+            playerState.currentIndex = index;
+            const track = playerState.playlist[index];
+
+            const audio = globalAudioEl();
+            audio.src = track.dataUrl;
+            audio.play().then(() => {
+                playerState.isPlaying = true;
+                updatePlayerUI();
+            }).catch(() => {
+                showToast("Не удалось воспроизвести аудио", "error");
+            });
+
+            document.getElementById('music-player-bar').classList.remove('hidden', 'collapsed');
+            updatePlayerTrackInfo();
+            updateAudioMessagePlayIcons();
+        }
+
+        function playerTogglePlay() {
+            const audio = globalAudioEl();
+            if (!audio.src) return;
+            if (playerState.isPlaying) {
+                audio.pause();
+                playerState.isPlaying = false;
+            } else {
+                audio.play().catch(() => {});
+                playerState.isPlaying = true;
+            }
+            updatePlayerUI();
+        }
+
+        function playerNext() {
+            if (playerState.currentIndex < playerState.playlist.length - 1) {
+                loadAndPlayTrack(playerState.currentIndex + 1);
+            } else {
+                showToast("Это последний трек в чате");
+            }
+        }
+
+        function playerPrev() {
+            if (playerState.currentIndex > 0) {
+                loadAndPlayTrack(playerState.currentIndex - 1);
+            } else {
+                showToast("Это первый трек в чате");
+            }
+        }
+
+        function closePlayer() {
+            const audio = globalAudioEl();
+            audio.pause();
+            audio.src = '';
+            playerState = { playlist: [], currentIndex: -1, isPlaying: false };
+            document.getElementById('music-player-bar').classList.add('hidden', 'collapsed');
+            updateAudioMessagePlayIcons();
+        }
+
+        function seekPlayer(event) {
+            const audio = globalAudioEl();
+            if (!audio.duration) return;
+            const track = document.getElementById('player-progress-track');
+            const rect = track.getBoundingClientRect();
+            const ratio = Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+            audio.currentTime = ratio * audio.duration;
+        }
+
+        function formatPlayerTime(seconds) {
+            if (!isFinite(seconds) || seconds < 0) return '0:00';
+            const m = Math.floor(seconds / 60);
+            const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+            return `${m}:${s}`;
+        }
+
+        function updatePlayerTrackInfo() {
+            const track = playerState.playlist[playerState.currentIndex];
+            const nameEl = document.getElementById('player-track-name');
+            if (nameEl && track) nameEl.innerText = track.filename;
+        }
+
+        function updatePlayerUI() {
+            const playIcon = document.getElementById('player-play-icon');
+            const pauseIcon = document.getElementById('player-pause-icon');
+            if (playerState.isPlaying) {
+                playIcon.classList.add('hidden');
+                pauseIcon.classList.remove('hidden');
+            } else {
+                playIcon.classList.remove('hidden');
+                pauseIcon.classList.add('hidden');
+            }
+            updateAudioMessagePlayIcons();
+        }
+
+        // Синхронизирует иконку play/pause внутри пузыря сообщения с состоянием глобального плеера —
+        // если сейчас играет именно это сообщение, показываем паузу, иначе play.
+        function updateAudioMessagePlayIcons() {
+            document.querySelectorAll('.audio-msg-play-icon').forEach(icon => {
+                const msgId = icon.getAttribute('data-msg-id');
+                const isCurrent = playerState.currentIndex >= 0 &&
+                    playerState.playlist[playerState.currentIndex] &&
+                    playerState.playlist[playerState.currentIndex].id === msgId;
+                const isPlayingThis = isCurrent && playerState.isPlaying;
+                icon.innerHTML = isPlayingThis
+                    ? '<path d="M6 5h4v14H6zm8 0h4v14h-4z"></path>'
+                    : '<path d="M8 5v14l11-7z"></path>';
+            });
+        }
+
+        // Слушатели глобального <audio> элемента — навешиваются один раз при старте
+        function setupGlobalAudioListeners() {
+            const audio = globalAudioEl();
+            audio.addEventListener('timeupdate', () => {
+                if (!audio.duration) return;
+                const percent = (audio.currentTime / audio.duration) * 100;
+                const fill = document.getElementById('player-progress-fill');
+                if (fill) fill.style.width = percent + '%';
+                const curEl = document.getElementById('player-time-current');
+                if (curEl) curEl.innerText = formatPlayerTime(audio.currentTime);
+            });
+            audio.addEventListener('loadedmetadata', () => {
+                const durEl = document.getElementById('player-time-duration');
+                if (durEl) durEl.innerText = formatPlayerTime(audio.duration);
+            });
+            audio.addEventListener('ended', () => {
+                if (playerState.currentIndex < playerState.playlist.length - 1) {
+                    loadAndPlayTrack(playerState.currentIndex + 1);
+                } else {
+                    playerState.isPlaying = false;
+                    updatePlayerUI();
+                }
+            });
+        }
+
         // --- ВВОД И ОТПРАВКА ---
         function autoResizeInput() {
             const el = document.getElementById('message-input');
@@ -1501,12 +1912,6 @@
         function handleFileUpload(event) {
             const file = event.target.files[0];
             if(!file) return;
-
-            if(state.activeChat === DEEPSEEK_BOT_PHONE) {
-                showToast("DeepSeek принимает только текстовые сообщения", "error");
-                event.target.value = '';
-                return;
-            }
 
             if(file.size > MAX_FILE_SIZE_BYTES) {
                 showToast(`Файл слишком большой! Максимум ${Math.round(MAX_FILE_SIZE_BYTES / 1024 / 1024)} МБ.`, "error");
@@ -1612,13 +2017,6 @@
             const text = input.value.trim();
             if(!text) return;
 
-            // Чат с ботом DeepSeek не проходит через Firebase/typing — отдельная ветка
-            if (state.activeChat === DEEPSEEK_BOT_PHONE) {
-                sendMessageToDeepseek(text);
-                cancelMessageAction();
-                return;
-            }
-
             const roomId = getChatRoomId(state.currentUser.phone, state.activeChat);
 
             // Сбрасываем индикатор "печатает" сразу при отправке
@@ -1652,111 +2050,6 @@
             });
 
             cancelMessageAction();
-        }
-
-        // --- ЧАТ С БОТОМ DEEPSEEK (локальный, без Firebase) ---
-        function addLocalMessage(targetPhone, msgData) {
-            const chat = state.chats[targetPhone];
-            if (!chat) return null;
-            const newMsg = {
-                id: 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
-                status: 'read',
-                ...msgData
-            };
-            chat.messages.push(newMsg);
-            saveState();
-            if (state.activeChat === targetPhone) renderActiveChat();
-            renderChatsList();
-            return newMsg;
-        }
-
-        async function sendMessageToDeepseek(text) {
-            const apiKey = getLocalDeepseekKey();
-            if (!apiKey) {
-                showToast("Сначала добавь свой DeepSeek API ключ в настройках профиля", "error");
-                openMyProfileModal();
-                return;
-            }
-
-            // Сообщение пользователя — сразу в UI
-            addLocalMessage(DEEPSEEK_BOT_PHONE, { type: 'text', text: text, sender: 'me' });
-
-            // Placeholder-сообщение бота, которое будем дополнять по мере получения токенов
-            const botMsg = addLocalMessage(DEEPSEEK_BOT_PHONE, { type: 'text', text: '', sender: 'them', isStreaming: true });
-
-            const indicator = document.getElementById('typing-indicator');
-            if (state.activeChat === DEEPSEEK_BOT_PHONE) indicator.classList.remove('hidden');
-
-            try {
-                const response = await fetch(DEEPSEEK_API_URL, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`
-                    },
-                    body: JSON.stringify({
-                        model: 'deepseek-chat',
-                        // По решению: каждое сообщение отдельное, без памяти прошлого диалога
-                        messages: [{ role: 'user', content: text }],
-                        stream: true
-                    })
-                });
-
-                if (!response.ok) {
-                    let errText = `Ошибка API (${response.status})`;
-                    try {
-                        const errData = await response.json();
-                        if (errData.error && errData.error.message) errText = errData.error.message;
-                    } catch(e) {}
-                    throw new Error(errText);
-                }
-
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let buffer = '';
-
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-
-                    buffer += decoder.decode(value, { stream: true });
-                    const lines = buffer.split('\n');
-                    buffer = lines.pop(); // последняя (возможно неполная) строка остаётся в буфере
-
-                    for (const line of lines) {
-                        const trimmed = line.trim();
-                        if (!trimmed.startsWith('data:')) continue;
-                        const payload = trimmed.slice(5).trim();
-                        if (payload === '[DONE]') continue;
-
-                        try {
-                            const json = JSON.parse(payload);
-                            const delta = json.choices?.[0]?.delta?.content;
-                            if (delta) {
-                                botMsg.text += delta;
-                                if (state.activeChat === DEEPSEEK_BOT_PHONE) renderActiveChat();
-                            }
-                        } catch (e) {
-                            // неполный JSON-чанк, игнорируем
-                        }
-                    }
-                }
-
-                botMsg.isStreaming = false;
-                if (!botMsg.text) botMsg.text = "(пустой ответ)";
-                saveState();
-                renderChatsList();
-                if (state.activeChat === DEEPSEEK_BOT_PHONE) renderActiveChat();
-            } catch (e) {
-                botMsg.isStreaming = false;
-                botMsg.text = `⚠️ Ошибка: ${e.message}`;
-                saveState();
-                if (state.activeChat === DEEPSEEK_BOT_PHONE) renderActiveChat();
-                showToast("Не удалось получить ответ от DeepSeek", "error");
-            } finally {
-                if (state.activeChat === DEEPSEEK_BOT_PHONE) indicator.classList.add('hidden');
-            }
         }
 
         function pushMessageToStateAndDb(msgData, targetPhoneOverride) {
@@ -1803,10 +2096,6 @@
         function openFriendsModal() { document.getElementById('friend-modal').classList.remove('hidden'); }
         function toggleEditContactModal() {
             if(!state.activeChat) return;
-            if(state.activeChat === DEEPSEEK_BOT_PHONE) {
-                showToast("DeepSeek — встроенный бот, его нельзя переименовать или удалить", "error");
-                return;
-            }
             document.getElementById('edit-contact-name-input').value = state.chats[state.activeChat].name;
             document.getElementById('edit-contact-modal').classList.remove('hidden');
         }
@@ -1838,7 +2127,6 @@
             document.getElementById('my-profile-name-input').value = state.currentUser.nickname;
             document.getElementById('my-profile-password-input').value = "";
             document.getElementById('my-profile-ring-color').value = state.currentUser.ringColor || "#22c55e";
-            document.getElementById('my-profile-deepseek-key').value = getLocalDeepseekKey() || "";
 
             const preview = document.getElementById('profile-modal-avatar-preview');
             if (state.currentUser.avatar && state.currentUser.avatar.startsWith('data:image')) {
@@ -1848,22 +2136,6 @@
             }
 
             document.getElementById('my-profile-modal').classList.remove('hidden');
-        }
-
-        // Ключ DeepSeek хранится ОТДЕЛЬНО от остального state и НИКОГДА не уходит в Firebase —
-        // это личный секрет пользователя, привязанный к его номеру телефона в этом браузере.
-        function deepseekKeyStorageKey() {
-            return state.currentUser ? `deepseek_key_${state.currentUser.phone}` : null;
-        }
-        function getLocalDeepseekKey() {
-            const key = deepseekKeyStorageKey();
-            return key ? localStorage.getItem(key) : null;
-        }
-        function setLocalDeepseekKey(value) {
-            const key = deepseekKeyStorageKey();
-            if (!key) return;
-            if (value) localStorage.setItem(key, value);
-            else localStorage.removeItem(key);
         }
 
         // --- УПРАВЛЕНИЕ КОНТАКТАМИ ---
@@ -1940,12 +2212,10 @@
             const newNick = document.getElementById('my-profile-name-input').value.trim();
             const newPass = document.getElementById('my-profile-password-input').value.trim();
             const newColor = document.getElementById('my-profile-ring-color').value;
-            const newDeepseekKey = document.getElementById('my-profile-deepseek-key').value.trim();
 
             if(newNick) state.currentUser.nickname = newNick;
             if(newPass) state.currentUser.passwordHash = await hashPassword(newPass);
             state.currentUser.ringColor = newColor;
-            setLocalDeepseekKey(newDeepseekKey);
 
             update(ref(db, 'users/' + state.currentUser.phone), {
                 nickname: state.currentUser.nickname,
